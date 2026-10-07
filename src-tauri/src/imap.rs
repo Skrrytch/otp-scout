@@ -3,7 +3,6 @@ use async_imap::extensions::idle::IdleResponse;
 use async_imap::types::NameAttribute;
 use futures_util::TryStreamExt;
 use native_tls::TlsConnector;
-use regex::Regex;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -263,38 +262,15 @@ fn build_payload(
     .to_string()
 }
 
+/// Decodes the subject (folded lines, RFC 2047 encoded words, any charset).
 fn parse_subject(header_bytes: &[u8]) -> Option<String> {
-    let header = String::from_utf8_lossy(header_bytes);
-    for line in header.lines() {
-        if let Some(val) = line.strip_prefix("Subject: ") {
-            return Some(decode_mime_words(val.trim()));
-        }
-        if let Some(val) = line.strip_prefix("Subject:") {
-            return Some(decode_mime_words(val.trim()));
-        }
-    }
-    None
+    let msg = mail_parser::MessageParser::default().parse_headers(header_bytes)?;
+    msg.subject().map(str::to_string)
 }
 
 fn parse_from(header_bytes: &[u8]) -> Option<String> {
-    let header = String::from_utf8_lossy(header_bytes);
-    for line in header.lines() {
-        if let Some(val) = line.strip_prefix("From: ") {
-            return Some(extract_email_addr(val.trim()));
-        }
-        if let Some(val) = line.strip_prefix("From:") {
-            return Some(extract_email_addr(val.trim()));
-        }
-    }
-    None
-}
-
-fn extract_email_addr(input: &str) -> String {
-    let addr_re = Regex::new(r"<?([^@\s]+@[^>\s]+)>?").unwrap();
-    if let Some(caps) = addr_re.captures(input) {
-        return caps[1].to_string();
-    }
-    input.trim().trim_matches(&['<', '>'] as &[_]).to_string()
+    let msg = mail_parser::MessageParser::default().parse_headers(header_bytes)?;
+    msg.from()?.first()?.address().map(str::to_string)
 }
 
 /// Decodes a full RFC 822 message (multipart, quoted-printable, base64, charsets).
@@ -310,59 +286,18 @@ fn parse_body(raw: &[u8]) -> MailBody {
     MailBody { text, html }
 }
 
-fn decode_mime_words(input: &str) -> String {
-    let encoded = Regex::new(r"=\?[^?]+\?[BbQq]\?[^?]*\?=").unwrap();
-    if !encoded.is_match(input) {
-        return input.to_string();
-    }
-    let mut result = input.to_string();
-    for m in encoded.find_iter(input) {
-        let raw = m.as_str();
-        if let Some(decoded) = decode_single_mime_word(raw) {
-            result = result.replace(raw, &decoded);
-        }
-    }
-    result
-}
-
-fn decode_single_mime_word(word: &str) -> Option<String> {
-    let inner = word.strip_prefix("=?")?.strip_suffix("?=")?;
-    let mut parts = inner.splitn(3, '?');
-    let _charset = parts.next()?;
-    let encoding = parts.next()?;
-    let data = parts.next()?;
-
-    match encoding.to_uppercase().as_str() {
-        "B" => {
-            use base64::Engine as _;
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(data.as_bytes())
-                .ok()?;
-            Some(String::from_utf8_lossy(&decoded).into_owned())
-        }
-        "Q" => {
-            let mut out = String::new();
-            let mut chars = data.chars();
-            while let Some(c) = chars.next() {
-                if c == '_' {
-                    out.push(' ');
-                } else if c == '=' {
-                    let hex: String = chars.by_ref().take(2).collect();
-                    if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                        out.push(byte as char);
-                    }
-                } else {
-                    out.push(c);
-                }
-            }
-            Some(out)
-        }
-        _ => None,
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_headers_folded_utf8_subject() {
+        let raw = b"From: Spotify <no-reply@alerts.spotify.com>\r\n\
+Subject: =?UTF-8?Q?913088=C2=A0=E2=80=93_dein_Spotify?=\r\n =?UTF-8?Q?_Anmeldecode?=\r\n\r\n";
+        let subject = parse_subject(raw).unwrap();
+        assert_eq!(subject, "913088\u{a0}\u{2013} dein Spotify Anmeldecode");
+        assert_eq!(parse_from(raw).as_deref(), Some("no-reply@alerts.spotify.com"));
+    }
 
     #[test]
     fn test_parse_body_quoted_printable_multipart() {

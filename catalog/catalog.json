@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "languages": [
+    {
+      "id": "de",
+      "name": "Deutsch"
+    },
+    {
+      "id": "en",
+      "name": "English"
+    }
+  ],
+  "categories": [
+    {
+      "id": "ai",
+      "name": {
+        "de": "KI",
+        "en": "AI"
+      },
+      "apps": [
+        {
+          "id": "claude-ai",
+          "name": "Claude AI",
+          "variants": {
+            "de": [
+              {
+                "kind": "link",
+                "sender": "*mail.anthropic.com",
+                "subject": "Dein sicherer Link zu Claude.ai ist da",
+                "link_prefix": "https://claude.ai/magic-link"
+              }
+            ],
+            "en": [
+              {
+                "kind": "link",
+                "sender": "*mail.anthropic.com",
+                "subject": "Secure link to log in to Claude.ai",
+                "link_prefix": "https://claude.ai/magic-link"
+              }
+            ]
+          },
+          "unverified": [
+            "en"
+          ]
+        },
+        {
+          "id": "openai",
+          "name": "OpenAI",
+          "variants": {
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*@tm.openai.com",
+                "subject": "Your OpenAI code is {code}",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "variants": {
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*@openrouter.ai",
+                "subject": "{code} is your verification code",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "perplexity",
+          "name": "Perplexity",
+          "unverified": [
+            "en"
+          ],
+          "variants": {
+            "en": [
+              {
+                "kind": "link",
+                "sender": "*@perplexity.ai",
+                "subject": "Sign in to Perplexity",
+                "link_prefix": "https://www.perplexity.ai/api/auth/callback/email"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "career",
+      "name": {
+        "de": "Karriere",
+        "en": "Career"
+      },
+      "apps": [
+        {
+          "id": "linkedin",
+          "name": "LinkedIn",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "security-noreply@linkedin.com",
+                "subject": "Hier ist Ihre PIN für die Bestätigung: {code}",
+                "code_pattern": "[0-9]{6}",
+                "body": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "development",
+      "name": {
+        "de": "Entwicklung",
+        "en": "Development"
+      },
+      "apps": [
+        {
+          "id": "github",
+          "name": "GitHub",
+          "unverified": [
+            "en"
+          ],
+          "variants": {
+            "en": [
+              {
+                "kind": "code",
+                "sender": "noreply@github.com",
+                "subject": "[GitHub] Please verify your device",
+                "body": "Verification code: {code}",
+                "code_pattern": "[0-9]{6}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "entertainment",
+      "name": {
+        "de": "Unterhaltung",
+        "en": "Entertainment"
+      },
+      "apps": [
+        {
+          "id": "disney-plus",
+          "name": "Disney+",
+          "unverified": [
+            "de",
+            "en"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*disneyplus.com",
+                "subject": "*Einmal-Passcode*Disney+*",
+                "body": "",
+                "code_pattern": "[0-9]{6}"
+              }
+            ],
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*disneyplus.com",
+                "subject": "*one-time passcode*Disney+*",
+                "body": "",
+                "code_pattern": "[0-9]{6}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "netflix",
+          "name": "Netflix",
+          "unverified": [
+            "de",
+            "en"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*netflix.com",
+                "subject": "Netflix: Dein Anmeldecode",
+                "body": "",
+                "code_pattern": "[0-9]{4}"
+              }
+            ],
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*netflix.com",
+                "subject": "Netflix: Your sign-in code",
+                "body": "",
+                "code_pattern": "[0-9]{4}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "spotify",
+          "name": "Spotify",
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@alerts.spotify.com",
+                "subject": "{code} * dein Spotify Anmeldecode",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ],
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*@alerts.spotify.com",
+                "subject": "{code} * your Spotify login code",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ]
+          },
+          "unverified": [
+            "en"
+          ]
+        },
+        {
+          "id": "twitch",
+          "name": "Twitch",
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@twitch.tv",
+                "subject": "{code} * Dein Twitch-Bestätigungscode",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "finance",
+      "name": {
+        "de": "Finanzen",
+        "en": "Finance"
+      },
+      "apps": [
+        {
+          "id": "paypal",
+          "name": "PayPal",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@paypal.de",
+                "subject": "Ihr Sicherheitscode lautet {code}",
+                "code_pattern": "[0-9]{6}",
+                "body": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "gaming",
+      "name": {
+        "de": "Gaming",
+        "en": "Gaming"
+      },
+      "apps": [
+        {
+          "id": "epic-games",
+          "name": "Epic Games",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "help@epicgames.com",
+                "subject": "Dein Epic Games-Sicherheitscode",
+                "body": "",
+                "code_pattern": "[0-9]{6}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "steam",
+          "name": "Steam",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "noreply@steampowered.com",
+                "subject": "Dein Steam-Account: Zugriff über*",
+                "body": "",
+                "code_pattern": "[A-Z0-9]{5}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mobility",
+      "name": {
+        "de": "Mobilität",
+        "en": "Mobility"
+      },
+      "apps": [
+        {
+          "id": "uber",
+          "name": "Uber",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@uber.com",
+                "subject": "Dein Uber-Bestätigungscode lautet {code}",
+                "code_pattern": "[0-9]{4,6}",
+                "body": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "productivity",
+      "name": {
+        "de": "Produktivität",
+        "en": "Productivity"
+      },
+      "apps": [
+        {
+          "id": "microsoft",
+          "name": "Microsoft-Konto / Account",
+          "unverified": [
+            "de",
+            "en"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@accountprotection.microsoft.com",
+                "subject": "Ihr Einmalcode",
+                "body": "Sicherheitscode: {code}",
+                "code_pattern": "[0-9]{4,8}"
+              },
+              {
+                "kind": "code",
+                "sender": "*@accountprotection.microsoft.com",
+                "subject": "Sicherheitscode für das Microsoft-Konto",
+                "body": "Sicherheitscode: {code}",
+                "code_pattern": "[0-9]{7}"
+              }
+            ],
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*@accountprotection.microsoft.com",
+                "subject": "Your single-use code",
+                "body": "Security code: {code}",
+                "code_pattern": "[0-9]{4,8}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "notion",
+          "name": "Notion",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*notion.so",
+                "subject": "Dein temporärer Notion-Code ist {code}",
+                "code_pattern": "[A-Za-z0-9-]{4,20}",
+                "body": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "slack",
+          "name": "Slack",
+          "unverified": [
+            "de",
+            "en"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@slack.com",
+                "subject": "Dein Slack-Bestätigungscode ist {code}",
+                "body": "",
+                "code_pattern": "[A-Z0-9]{3}-[A-Z0-9]{3}"
+              }
+            ],
+            "en": [
+              {
+                "kind": "code",
+                "sender": "*@slack.com",
+                "subject": "Slack confirmation code: {code}",
+                "body": "",
+                "code_pattern": "[A-Z0-9]{3}-[A-Z0-9]{3}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "name": {
+        "de": "Lesen & News",
+        "en": "Reading & News"
+      },
+      "apps": [
+        {
+          "id": "medium",
+          "name": "Medium",
+          "unverified": [
+            "en"
+          ],
+          "variants": {
+            "en": [
+              {
+                "kind": "link",
+                "sender": "*@medium.com",
+                "subject": "Sign in to Medium",
+                "link_prefix": "https://medium.com/m/callback/email"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "shopping",
+      "name": {
+        "de": "Einkaufen",
+        "en": "Shopping"
+      },
+      "apps": [
+        {
+          "id": "amazon",
+          "name": "Amazon",
+          "unverified": [
+            "de"
+          ],
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@amazon.de",
+                "subject": "{code} ist Ihr Amazon-Einmalkennwort (OTP)",
+                "code_pattern": "[0-9]{6}",
+                "body": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "silentwood",
+          "name": "Silentwood",
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@silentwood.com",
+                "subject": "Dein Code lautet {code}",
+                "code_pattern": "[0-9]{4,8}",
+                "body": ""
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

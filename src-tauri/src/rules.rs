@@ -495,3 +495,18 @@ mod tests {
         assert!(CompiledRule::compile(&link_rule("https://")).is_err());
     }
 }
+
+#[cfg(test)]
+mod spotify_tests {
+    use super::*;
+
+    #[test]
+    fn test_code_in_subject_with_nbsp_and_dash() {
+        let mut r = DetectionRule::default();
+        r.sender = "*".into();
+        r.subject = "{code} * dein Spotify Anmeldecode".into();
+        r.body = String::new();
+        let code = test_rule(&r, "no-reply@alerts.spotify.com", "913088\u{a0}\u{2013} dein Spotify Anmeldecode", "").unwrap();
+        assert_eq!(code.as_deref(), Some("913088"));
+    }
+}

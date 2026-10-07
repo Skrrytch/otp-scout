@@ -13,6 +13,7 @@ use tauri_plugin_notification::NotificationExt;
 use tokio::sync::{mpsc, Mutex, Notify};
 
 mod api;
+mod catalog;
 mod config;
 mod html;
 mod imap;
@@ -65,6 +66,12 @@ async fn trigger_check(app: AppHandle) -> anyhow::Result<()> {
     // Wakes idling connections and skips the backoff of failed ones.
     app.state::<AppState>().check_now.notify_waiters();
     Ok(())
+}
+
+/// Catalog of preconfigured rules shown in the account dialog.
+#[tauri::command]
+async fn get_catalog() -> Result<catalog::LoadedCatalog, String> {
+    catalog::load().await.map_err(|e| format!("{e:#}"))
 }
 
 #[tauri::command]
@@ -371,6 +378,7 @@ fn main() {
             test_rule,
             check_now,
             get_app_info,
+            get_catalog,
             get_last_code,
             copy_code,
             open_link,

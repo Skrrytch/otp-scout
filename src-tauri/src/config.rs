@@ -97,11 +97,16 @@ impl Default for ApiConfig {
 
 pub type SharedConfig = Arc<Mutex<AppConfig>>;
 
+/// `~/.config/otp-scout`, created if missing.
+pub fn config_dir() -> Result<std::path::PathBuf> {
+    let dir = dirs::config_dir().context("No config dir")?.join(CONFIG_DIR);
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
 fn config_path() -> Result<std::path::PathBuf> {
     let base = dirs::config_dir().context("No config dir")?;
-    let dir = base.join(CONFIG_DIR);
-    std::fs::create_dir_all(&dir)?;
-    let path = dir.join(CONFIG_FILE);
+    let path = config_dir()?.join(CONFIG_FILE);
     let legacy = base.join(LEGACY_CONFIG_DIR).join(CONFIG_FILE);
     if !path.exists() && legacy.exists() {
         std::fs::copy(&legacy, &path).context("Failed to migrate legacy config")?;

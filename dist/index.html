@@ -107,6 +107,16 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
 .status .when { color:var(--muted); margin-left:auto; white-space:nowrap; padding-left:8px; }
 .status .msg { word-break:break-word; }
 .form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+.catalog-bar { display:grid; grid-template-columns:1fr 140px; gap:8px; margin-bottom:12px; }
+.cat-group { margin-bottom:12px; }
+.cat-group h4 { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:4px; }
+.cat-app { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); margin-bottom:4px; }
+.cat-app .name { flex:1; font-weight:550; }
+.cat-app .added { font-size:12px; color:var(--ok); }
+.kind-badge { font-size:11px; padding:1px 7px; border-radius:9px; background:var(--accent-soft); color:var(--text); white-space:nowrap; }
+.unverified-badge { font-size:11px; padding:1px 7px; border-radius:9px; border:1px solid #f59e0b; color:#b45309; white-space:nowrap; }
+@media (prefers-color-scheme: dark) { .unverified-badge { color:#fbbf24; } }
+.btn-add { width:26px; height:26px; padding:0; border-radius:50%; font-size:16px; line-height:1; }
 #toast { display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; border-radius:8px; font-size:13px; z-index:20; color:#fff; box-shadow:var(--shadow); max-width:80vw; }
 #toast.success { background:var(--ok); }
 #toast.error { background:var(--danger); }
@@ -184,6 +194,7 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
       <button data-tab="connection" onclick="showTab('connection')">Connection</button>
       <button data-tab="code" onclick="showTab('code')">🔢 Code rules <span class="count" id="count-code"></span></button>
       <button data-tab="link" onclick="showTab('link')">🔗 Link rules <span class="count" id="count-link"></span></button>
+      <button data-tab="catalog" onclick="showTab('catalog')">📚 Catalog</button>
     </div>
     <div class="tab-body">
     <div class="tab-panel" data-tab="connection">
@@ -246,6 +257,16 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
       <div class="hint" style="margin-bottom:12px">Detects a <b>login link</b> (e.g. a magic link) in the body and offers it for opening. The body is only downloaded when sender/subject already match.</div>
       <div id="rules-link"></div>
       <button class="btn-sm" onclick="addRule('link')">+ Add link rule</button>
+    </div>
+
+    <div class="tab-panel" data-tab="catalog">
+      <div class="hint" style="margin-bottom:12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">OTP-Scout catalog on GitHub</a>. <b>+</b> adds the rules of the selected language to this account; they then appear under code or link rules and can be adjusted there.</div>
+      <div class="catalog-bar">
+        <input id="cat-filter" placeholder="Filter by name, e.g. Spotify" oninput="renderCatalog()">
+        <select id="cat-lang" onchange="renderCatalog()"></select>
+      </div>
+      <div class="hint" id="cat-offline" style="margin-bottom:8px"></div>
+      <div id="catalog-list"></div>
     </div>
     </div>
 
@@ -514,6 +535,65 @@ function onSecurityChange() {
 function showTab(name) {
   document.querySelectorAll('.form-box .tabs button, .tab-panel').forEach(el => el.classList.toggle('on', el.dataset.tab === name))
   document.querySelector('.tab-body').scrollTop = 0
+  if (name === 'catalog') loadCatalog()
+}
+
+// ---- Catalog tab ----
+let catalog = null
+const CATALOG_PAGE = 'https://github.com/Skrrytch/otp-scout/tree/main/catalog'
+
+async function loadCatalog() {
+  if (!catalog) {
+    const list = document.getElementById('catalog-list')
+    list.innerHTML = '<div class="empty-rules">Loading catalog from GitHub…</div>'
+    let loaded
+    try { loaded = await invoke('get_catalog') }
+    catch(e) { list.innerHTML = `<div class="empty-rules">⚠ ${esc(e)}</div>`; return }
+    catalog = loaded.catalog
+    document.getElementById('cat-offline').innerHTML = loaded.offline_reason
+      ? `⚠ GitHub not reachable – showing the last downloaded catalog. <span class="dim">(${esc(loaded.offline_reason)})</span>` : ''
+    const sel = document.getElementById('cat-lang')
+    const preferred = (navigator.language || 'en').slice(0, 2)
+    sel.innerHTML = catalog.languages.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')
+    sel.value = catalog.languages.some(l => l.id === preferred) ? preferred : catalog.languages[0].id
+  }
+  renderCatalog()
+}
+
+const KIND_LABEL = { code:'🔢 Code', link:'🔗 Link' }
+const sameRule = (a, b) => a.kind === b.kind && a.sender === b.sender && a.subject === b.subject && a.link_prefix === b.link_prefix
+
+function renderCatalog() {
+  if (!catalog) return
+  const lang = document.getElementById('cat-lang').value
+  const filter = document.getElementById('cat-filter').value.trim().toLowerCase()
+  const groups = catalog.categories.map(cat => {
+    const apps = cat.apps.filter(a => a.variants[lang] && a.name.toLowerCase().includes(filter))
+    if (!apps.length) return ''
+    return `<div class="cat-group"><h4>${esc(cat.name[lang] || cat.id)}</h4>${apps.map(a => {
+      const rules = a.variants[lang]
+      const kinds = [...new Set(rules.map(r => r.kind))].map(k => `<span class="kind-badge">${KIND_LABEL[k]}</span>`).join('')
+      const added = rules.every(r => editingRules.some(e => sameRule(e, r)))
+      const unverified = (a.unverified || []).includes(lang)
+        ? '<span class="unverified-badge" title="Not yet checked against a real mail – please test before relying on it">unverified</span>' : ''
+      return `<div class="cat-app"><span class="name">${esc(a.name)}</span>${unverified}${kinds}
+        ${added ? '<span class="added">✓ added</span>'
+                : `<button class="btn-primary btn-add" title="Add rule" onclick="addCatalogApp('${esc(cat.id)}','${esc(a.id)}')">+</button>`}</div>`
+    }).join('')}</div>`
+  }).join('')
+  document.getElementById('catalog-list').innerHTML = groups || '<div class="empty-rules">No matching services.</div>'
+}
+
+function addCatalogApp(catId, appId) {
+  const lang = document.getElementById('cat-lang').value
+  const app = catalog.categories.find(c => c.id === catId).apps.find(a => a.id === appId)
+  const langName = catalog.languages.find(l => l.id === lang).name
+  for (const r of app.variants[lang]) {
+    if (!editingRules.some(e => sameRule(e, r))) editingRules.push({ ...r, label: `${app.name} (${langName})`, enabled: true })
+  }
+  renderRules()
+  renderCatalog()
+  showToast(`${app.name} added – click Save to apply.`, 'success')
 }
 
 function addRule(kind) {
