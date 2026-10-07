@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OTP-Scout Settings</title>
+<style>
+:root {
+  --bg:#f4f6fb; --surface:#ffffff; --surface-2:#eef1f7; --border:#d5dbe7;
+  --text:#1c2333; --muted:#5b667a; --accent:#2563eb; --accent-hover:#1d4ed8;
+  --accent-soft:#e0e9fd; --danger:#dc2626; --danger-hover:#b91c1c; --ok:#16a34a;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#14171f; --surface:#1d2230; --surface-2:#262c3d; --border:#343c52;
+    --text:#e8ecf4; --muted:#a3adc2; --accent:#4f8cff; --accent-hover:#6b9fff;
+    --accent-soft:#233355; --danger:#ef4444; --danger-hover:#f87171; --ok:#22c55e;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:var(--bg); color:var(--text); padding:20px; font-size:14px; line-height:1.45; }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+h1 { font-size:20px; font-weight:650; }
+h1 small { display:block; font-size:12px; font-weight:400; color:var(--muted); }
+h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 0 8px; }
+.btn-bar { display:flex; gap:8px; }
+button { padding:7px 14px; border:1px solid transparent; border-radius:6px; cursor:pointer; font-size:13px; font-weight:550; font-family:inherit; background:var(--surface-2); color:var(--text); border-color:var(--border); }
+button:hover { border-color:var(--accent); }
+.btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+.btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+.btn-danger { background:transparent; color:var(--danger); border-color:var(--danger); }
+.btn-danger:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+.btn-sm { padding:4px 11px; font-size:12px; }
+.btn-xs { padding:3px 8px; font-size:12px; line-height:1; }
+.account-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.account-card .head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.account-card h3 { font-size:15px; font-weight:600; }
+.account-card .actions { display:flex; gap:6px; }
+.info { font-size:13px; display:grid; grid-template-columns:90px 1fr; gap:4px 12px; }
+.info dt { color:var(--muted); }
+.info dd { word-break:break-all; }
+.chip { display:inline-block; background:var(--accent-soft); color:var(--text); border-radius:4px; padding:1px 7px; margin:0 4px 3px 0; font-size:12px; }
+.chip code { font-family:ui-monospace,"JetBrains Mono",monospace; color:var(--muted); }
+.dim { color:var(--muted); }
+.empty-state { text-align:center; padding:48px 20px; color:var(--muted); background:var(--surface); border:1px dashed var(--border); border-radius:10px; }
+.form-overlay { display:none; position:fixed; inset:0; background:rgba(10,14,25,.55); justify-content:center; align-items:center; z-index:10; padding:16px; }
+.form-overlay.active { display:flex; }
+.form-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; width:760px; max-width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,.3); }
+.form-box { display:flex; flex-direction:column; height:min(92vh, 780px); overflow:hidden !important; }
+.form-box > h2:first-child { font-size:17px; text-transform:none; letter-spacing:0; color:var(--text); margin:0 0 16px; }
+label.check { display:flex !important; align-items:center; gap:8px; color:var(--text) !important; font-size:13px !important; font-weight:400 !important; padding-top:8px; cursor:pointer; }
+label.check input { width:auto; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+.grid-port { display:grid; grid-template-columns:1fr 100px; gap:0 12px; }
+.form-group { margin-bottom:12px; }
+.form-group label { display:block; font-size:12px; font-weight:550; color:var(--muted); margin-bottom:4px; }
+.form-group label small { font-weight:400; }
+input, select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; }
+input::placeholder { color:var(--muted); opacity:.7; }
+input:focus, select:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+.rule-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--surface-2); }
+.rule-card.disabled { opacity:.6; }
+.rule-top { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+.rule-top input[type=text] { font-weight:600; }
+.rule-top label { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted); white-space:nowrap; }
+.rule-top input[type=checkbox] { width:auto; }
+.tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:-4px 0 16px; }
+.tabs button { background:none; border:none; border-bottom:2px solid transparent; border-radius:0; color:var(--muted); padding:8px 14px; margin-bottom:-1px; }
+.tabs button:hover { color:var(--text); border-color:transparent; border-bottom-color:var(--border); }
+.tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
+.tabs .count { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:var(--surface-2); color:var(--muted); font-size:11px; }
+.tabs .count:empty { display:none; }
+.main-tabs { margin:0 0 16px; }
+.main-panel { display:none; }
+.main-panel.on { display:block; }
+.api-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:4px; vertical-align:middle; background:var(--muted); opacity:.5; }
+.api-dot.listening { background:var(--ok); opacity:1; }
+.api-dot.error { background:var(--danger); opacity:1; }
+.token-row { display:flex; gap:6px; }
+.token-row input { flex:1; }
+.link-row { display:flex; gap:6px; margin-bottom:6px; }
+.link-row input { flex:1; }
+pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.5px; line-height:1.5; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; overflow-x:auto; white-space:pre; }
+.tab-body { flex:1; overflow-y:auto; margin:0 -22px; padding:0 22px; }
+.tab-panel { display:none; }
+.tab-panel.on { display:block; }
+.empty-rules { font-size:13px; color:var(--muted); text-align:center; padding:24px 10px; border:1px dashed var(--border); border-radius:10px; margin-bottom:12px; }
+.hint { font-size:11.5px; color:var(--muted); margin-top:3px; }
+.hint code, .mono { font-family:ui-monospace,"JetBrains Mono",monospace; }
+.hint code { background:var(--accent-soft); padding:0 4px; border-radius:3px; color:var(--text); }
+.grid-code { display:grid; grid-template-columns:200px 1fr; gap:0 10px; }
+textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; resize:vertical; }
+textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+details.tester { margin-top:4px; }
+details.tester summary { cursor:pointer; font-size:12px; color:var(--accent); font-weight:550; }
+details.tester .body { margin-top:8px; padding:10px; border-radius:8px; background:var(--surface); border:1px solid var(--border); }
+.test-result { font-size:13px; font-weight:550; padding:6px 10px; border-radius:6px; background:var(--bg); }
+.test-result.ok { color:var(--ok); }
+.test-result.err { color:var(--danger); }
+.status { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:10px; padding:7px 10px; border-radius:6px; background:var(--surface-2); }
+.status .dot { width:9px; height:9px; border-radius:50%; margin-top:4px; flex:none; background:var(--muted); }
+.status.ok .dot { background:var(--ok); }
+.status.error .dot { background:var(--danger); }
+.status.connecting .dot { background:#f59e0b; }
+.status.error { color:var(--danger); }
+.status .when { color:var(--muted); margin-left:auto; white-space:nowrap; padding-left:8px; }
+.status .msg { word-break:break-word; }
+.form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+#toast { display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; border-radius:8px; font-size:13px; z-index:20; color:#fff; box-shadow:var(--shadow); max-width:80vw; }
+#toast.success { background:var(--ok); }
+#toast.error { background:var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OTP-Scout<small>IMAP accounts &amp; detection rules</small></h1>
+  <div class="btn-bar">
+    <button onclick="invoke('check_now').then(() => showToast('Checking…', 'success'))">Check now</button>
+    <button onclick="restartImap().then(() => showToast('Reconnecting…', 'success'))">Reconnect all</button>
+    <button class="btn-primary" onclick="showForm()">+ Add account</button>
+  </div>
+</header>
+
+<nav class="tabs main-tabs">
+  <button data-main="accounts" class="on" onclick="showMainTab('accounts')">Accounts</button>
+  <button data-main="api" onclick="showMainTab('api')">API <span class="api-dot" id="api-dot"></span></button>
+</nav>
+
+<section class="main-panel on" data-main="accounts">
+  <div id="account-list"></div>
+</section>
+
+<section class="main-panel" data-main="api">
+  <div class="account-card">
+    <div id="api-status"></div>
+    <p class="hint" style="margin-bottom:14px">Local HTTP endpoint to show codes and links from outside, e.g. from a Tampermonkey script. Listens on <code>127.0.0.1</code> only; every request needs the token.</p>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="check"><input type="checkbox" id="api-enabled"> Enable API server</label>
+      </div>
+      <div class="form-group">
+        <label>Port</label>
+        <input id="api-port" type="number" min="1024" max="65535" value="6870">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Token <small>(header <code>X-OTP-Scout-Token</code>, stored in system keyring)</small></label>
+      <div class="token-row">
+        <input id="api-token" class="mono" type="password" readonly>
+        <button class="btn-sm" onclick="toggleToken()" id="api-token-show">Show</button>
+        <button class="btn-sm" onclick="copyText(apiToken, 'Token copied')">Copy</button>
+        <button class="btn-sm btn-danger" onclick="regenerateToken()">Regenerate</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Allowed links <small>(for <code>/api/otp/link</code>)</small></label>
+      <div id="api-links"></div>
+      <button class="btn-sm" onclick="addAllowedLink()">+ Add link</button>
+      <div class="hint">Only links starting with one of these are shown, e.g. <code>https://claude.ai/magic-link</code>. Empty list = any <code>https://</code> link is accepted.</div>
+    </div>
+    <div class="form-actions" style="border:none;padding-top:0">
+      <button class="btn-primary" onclick="saveApi()">Save &amp; apply</button>
+    </div>
+  </div>
+
+  <div class="account-card">
+    <div class="head"><h3>Endpoints</h3></div>
+    <div class="info">
+      <dt>Code</dt><dd><code class="mono">POST /api/otp/code</code> <span class="dim">{"code": "…", "ruleName": "…"}</span></dd>
+      <dt>Link</dt><dd><code class="mono">POST /api/otp/link</code> <span class="dim">{"link": "…", "ruleName": "…"}</span></dd>
+    </div>
+    <div class="head" style="margin-top:14px"><h3>Tampermonkey example</h3><button class="btn-sm" onclick="copyText(document.getElementById('api-example').textContent, 'Example copied')">Copy</button></div>
+    <pre id="api-example" class="example"></pre>
+  </div>
+</section>
+
+<div id="form-overlay" class="form-overlay" onclick="if(event.target===this)hideForm()">
+  <div class="form-box">
+    <h2 id="form-title">Add Account</h2>
+    <div class="tabs">
+      <button data-tab="connection" onclick="showTab('connection')">Connection</button>
+      <button data-tab="code" onclick="showTab('code')">🔢 Code rules <span class="count" id="count-code"></span></button>
+      <button data-tab="link" onclick="showTab('link')">🔗 Link rules <span class="count" id="count-link"></span></button>
+    </div>
+    <div class="tab-body">
+    <div class="tab-panel" data-tab="connection">
+    <div class="form-group">
+      <label>Display Name</label>
+      <input id="f-label" placeholder="e.g. Gmail, Work">
+    </div>
+    <div class="grid-port">
+      <div class="form-group">
+        <label>IMAP Server</label>
+        <input id="f-server" placeholder="imap.example.com">
+      </div>
+      <div class="form-group">
+        <label>Port</label>
+        <input id="f-port" type="number" value="993">
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Encryption</label>
+        <select id="f-security" onchange="onSecurityChange()">
+          <option value="ssl">SSL/TLS (port 993)</option>
+          <option value="starttls">STARTTLS (port 143)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="check"><input type="checkbox" id="f-invalid-certs"> Accept self-signed certificate</label>
+      </div>
+    </div>
+    <div class="hint" style="margin:-6px 0 12px">Proton Mail Bridge: server <code>127.0.0.1</code>, port <code>1143</code>, STARTTLS, accept self-signed certificate, and the bridge password shown in the Bridge app.</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Username</label>
+        <input id="f-user" placeholder="user@example.com" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Password <small>(system keyring)</small></label>
+        <input id="f-pass" type="password" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Mailbox</label>
+      <input id="f-mailbox" value="INBOX">
+    </div>
+    <div class="form-group">
+      <label>Allowed senders for all rules <small>(optional)</small></label>
+      <input id="f-sender-filter" placeholder="e.g. *@github.com, noreply@*">
+      <div class="hint">Comma-separated, <code>*</code> = any text. Empty = mails from any sender are checked.</div>
+    </div>
+    </div>
+
+    <div class="tab-panel" data-tab="code">
+      <div class="hint" style="margin-bottom:12px">Detects a <b>code</b> and shows it large for copying. The code is taken from the subject if it contains <code>{code}</code>, otherwise from the body – which is only downloaded when sender/subject already match. Rules are checked in order; the first match wins.</div>
+      <div id="rules-code"></div>
+      <button class="btn-sm" onclick="addRule('code')">+ Add code rule</button>
+    </div>
+
+    <div class="tab-panel" data-tab="link">
+      <div class="hint" style="margin-bottom:12px">Detects a <b>login link</b> (e.g. a magic link) in the body and offers it for opening. The body is only downloaded when sender/subject already match.</div>
+      <div id="rules-link"></div>
+      <button class="btn-sm" onclick="addRule('link')">+ Add link rule</button>
+    </div>
+    </div>
+
+    <div class="form-actions">
+      <button onclick="hideForm()">Cancel</button>
+      <button class="btn-primary" id="f-save-btn" onclick="saveAccount()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let editId = null
+let editingRules = []
+let statuses = {}
+
+const CODE_FORMATS = [
+  { id:'digits', label:'Digits (4–8)', pattern:'[0-9]{4,8}' },
+  { id:'alnum', label:'Letters, digits, dash', pattern:'[A-Za-z0-9-]{4,12}' },
+  { id:'custom', label:'Custom regex…', pattern:null },
+]
+const newRule = (kind = 'code') => ({ label:'', kind, sender:'', subject: kind === 'code' ? '{code} is your code' : '', body:'', code_pattern:'[0-9]{4,8}', link_prefix:'', enabled:true })
+const formatOf = p => (CODE_FORMATS.find(f => f.pattern === p) || CODE_FORMATS[2]).id
+
+async function invoke(cmd, args = {}) {
+  const ipc = window.__TAURI_INTERNALS__ || window.__TAURI__
+  if (ipc && ipc.invoke) return ipc.invoke(cmd, args)
+  if (ipc && ipc.core) return ipc.core.invoke(cmd, args)
+  throw new Error('Tauri API not found')
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = type
+  t.style.display = 'block'
+  setTimeout(() => t.style.display = 'none', 3000)
+}
+
+async function loadAccounts() {
+  try {
+    const [accounts, sts] = await Promise.all([invoke('get_accounts'), invoke('get_status')])
+    sts.forEach(st => statuses[st.account_id] = st)
+    renderList(accounts)
+  } catch(e) {
+    showToast('Failed to load accounts: ' + e, 'error')
+  }
+}
+
+function renderList(accounts) {
+  const el = document.getElementById('account-list')
+  if (!accounts.length) {
+    el.innerHTML = '<div class="empty-state">No accounts configured.<br>Click "+ Add Account" to get started.</div>'
+    return
+  }
+  el.innerHTML = accounts.map(a => {
+    const rules = (a.rules||[]).map(r => `<span class="chip">${r.kind === 'link' ? '🔗' : '🔢'} ${esc(r.label)}${r.enabled ? '' : ' (off)'} · <code>${esc(r.kind === 'link' ? r.link_prefix : (r.subject || r.sender))}</code></span>`).join('') || '<span class="dim">(default rules)</span>'
+    const filter = (a.sender_filter||[]).length ? esc(a.sender_filter.join(', ')) : '<span class="dim">all senders</span>'
+    return `
+    <div class="account-card">
+      <div class="head">
+        <h3>${esc(a.label||a.user||'(unnamed)')}</h3>
+        <div class="actions">
+          <button class="btn-sm" onclick="editAccount('${a.id}')">Edit</button>
+          <button class="btn-danger btn-sm" onclick="deleteAccount('${a.id}')">Delete</button>
+        </div>
+      </div>
+      <div id="status-${a.id}">${renderStatus(a.id)}</div>
+      <div class="info">
+        <dt>Server</dt><dd>${esc(a.server)}:${a.port} <span class="dim">· ${a.security === 'starttls' ? 'STARTTLS' : 'SSL/TLS'}${a.allow_invalid_certs ? ', self-signed OK' : ''}</span></dd>
+        <dt>User</dt><dd>${esc(a.user)}</dd>
+        <dt>Mailbox</dt><dd>${esc(a.mailbox)}</dd>
+        <dt>Sender</dt><dd>${filter}</dd>
+        <dt>Rules</dt><dd>${rules}</dd>
+      </div>
+    </div>
+  `}).join('')
+}
+
+// ---- API tab ----
+let apiToken = '', apiPort = 6870, allowedLinks = []
+
+function showMainTab(name) {
+  document.querySelectorAll('.main-tabs button, .main-panel').forEach(el => el.classList.toggle('on', el.dataset.main === name))
+  document.querySelector('.btn-bar').style.visibility = name === 'accounts' ? 'visible' : 'hidden'
+  if (name === 'api') loadApi()
+}
+
+async function loadApi() {
+  try {
+    const st = await invoke('get_api_settings')
+    apiToken = st.token
+    apiPort = st.config.port
+    allowedLinks = [...(st.config.allowed_links || [])]
+    document.getElementById('api-enabled').checked = st.config.enabled
+    document.getElementById('api-port').value = st.config.port
+    document.getElementById('api-token').value = apiToken
+    renderAllowedLinks()
+    renderApiStatus(st.status)
+    renderExample()
+  } catch(e) { showToast('Failed to load API settings: ' + e, 'error') }
+}
+
+function renderApiStatus(st) {
+  if (!st) return
+  document.getElementById('api-dot').className = 'api-dot ' + st.state
+  const el = document.getElementById('api-status')
+  if (!el) return
+  const cls = { listening:'ok', error:'error', off:'' }[st.state] || ''
+  const title = { listening:'Running', error:'Error', off:'Off' }[st.state] || st.state
+  const last = st.last_request ? `Last request ${new Date(st.last_request * 1000).toLocaleString()}` : ''
+  el.innerHTML = `<div class="status ${cls}"><span class="dot"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${last}</span></div>`
+}
+
+function renderAllowedLinks() {
+  document.getElementById('api-links').innerHTML = allowedLinks.map((l, i) => `
+    <div class="link-row">
+      <input class="mono" value="${esc(l)}" placeholder="https://claude.ai/magic-link" oninput="allowedLinks[${i}]=this.value">
+      <button class="btn-danger btn-xs" title="Remove" onclick="allowedLinks.splice(${i},1);renderAllowedLinks()">✕</button>
+    </div>`).join('')
+}
+
+function addAllowedLink() {
+  allowedLinks.push('https://')
+  renderAllowedLinks()
+  const inputs = document.querySelectorAll('#api-links input')
+  inputs[inputs.length - 1].focus()
+}
+
+async function saveApi() {
+  const api = {
+    enabled: document.getElementById('api-enabled').checked,
+    port: parseInt(document.getElementById('api-port').value) || 6870,
+    allowed_links: allowedLinks.map(l => l.trim()).filter(l => l && l !== 'https://'),
+  }
+  try {
+    await invoke('set_api_settings', { api })
+    await loadApi()
+    showToast('API settings saved.', 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function regenerateToken() {
+  if (!confirm('Generate a new token? Scripts using the old token stop working.')) return
+  try {
+    apiToken = await invoke('regenerate_api_token')
+    document.getElementById('api-token').value = apiToken
+    renderExample()
+    showToast('New token generated.', 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+function toggleToken() {
+  const input = document.getElementById('api-token'), btn = document.getElementById('api-token-show')
+  const show = input.type === 'password'
+  input.type = show ? 'text' : 'password'
+  btn.textContent = show ? 'Hide' : 'Show'
+}
+
+async function copyText(text, msg) {
+  try { await invoke('copy_code', { code: text }); showToast(msg, 'success') }
+  catch(e) { showToast('Copy failed: ' + e, 'error') }
+}
+
+function renderExample() {
+  document.getElementById('api-example').textContent =
+`// ==UserScript==
+// @name         OTP-Scout bridge
+// @match        https://example.com/*
+// @grant        GM_xmlhttpRequest
+// @connect      127.0.0.1
+// ==/UserScript==
+
+function otpScout(kind, value, ruleName) {
+  GM_xmlhttpRequest({
+    method: 'POST',
+    url: 'http://127.0.0.1:${apiPort}/api/otp/' + kind,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-OTP-Scout-Token': '${apiToken}',
+    },
+    data: JSON.stringify(kind === 'code'
+      ? { code: value, ruleName }
+      : { link: value, ruleName }),
+    onload: r => console.log('OTP-Scout:', r.status, r.responseText),
+  })
+}
+
+// otpScout('code', '123456', 'My site')
+// otpScout('link', 'https://example.com/login?token=…', 'My site')`
+}
+
+function renderStatus(id) {
+  const st = statuses[id]
+  if (!st) return '<div class="status"><span class="dot"></span><span class="msg dim">No connection attempt yet</span></div>'
+  const when = new Date(st.timestamp * 1000).toLocaleString()
+  const title = { ok:'OK', error:'Error', connecting:'Connecting' }[st.state] || st.state
+  return `<div class="status ${st.state}"><span class="dot"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${when}</span></div>`
+}
+
+function updateStatus(st) {
+  statuses[st.account_id] = st
+  const el = document.getElementById('status-' + st.account_id)
+  if (el) el.innerHTML = renderStatus(st.account_id)
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function showForm() {
+  editId = null
+  editingRules = []
+  showTab('connection')
+  document.getElementById('form-title').textContent = 'Add Account'
+  document.getElementById('f-pass').placeholder = 'Required'
+  document.getElementById('f-label').value = ''
+  document.getElementById('f-server').value = ''
+  document.getElementById('f-port').value = '993'
+  document.getElementById('f-security').value = 'ssl'
+  document.getElementById('f-invalid-certs').checked = false
+  document.getElementById('f-user').value = ''
+  document.getElementById('f-pass').value = ''
+  document.getElementById('f-mailbox').value = 'INBOX'
+  document.getElementById('f-sender-filter').value = ''
+  renderRules()
+  document.getElementById('form-overlay').classList.add('active')
+}
+
+function hideForm() {
+  editId = null
+  document.getElementById('form-overlay').classList.remove('active')
+}
+
+async function editAccount(id) {
+  const accounts = await invoke('get_accounts')
+  const a = accounts.find(x => x.id === id)
+  if (!a) return
+  editId = id
+  editingRules = JSON.parse(JSON.stringify(a.rules || []))
+  showTab('connection')
+  document.getElementById('form-title').textContent = 'Edit Account'
+  document.getElementById('f-pass').placeholder = 'Leave blank to keep existing'
+  document.getElementById('f-label').value = a.label || ''
+  document.getElementById('f-server').value = a.server || ''
+  document.getElementById('f-port').value = a.port
+  document.getElementById('f-security').value = a.security || 'ssl'
+  document.getElementById('f-invalid-certs').checked = !!a.allow_invalid_certs
+  document.getElementById('f-user').value = a.user || ''
+  document.getElementById('f-pass').value = ''
+  document.getElementById('f-mailbox').value = a.mailbox || 'INBOX'
+  document.getElementById('f-sender-filter').value = (a.sender_filter||[]).join(', ')
+  renderRules()
+  document.getElementById('form-overlay').classList.add('active')
+}
+
+// Switch the port along with the encryption unless a custom port was entered.
+function onSecurityChange() {
+  const port = document.getElementById('f-port')
+  const sec = document.getElementById('f-security').value
+  if (sec === 'starttls' && port.value === '993') port.value = '143'
+  if (sec === 'ssl' && (port.value === '143' || port.value === '1143')) port.value = '993'
+}
+
+function showTab(name) {
+  document.querySelectorAll('.form-box .tabs button, .tab-panel').forEach(el => el.classList.toggle('on', el.dataset.tab === name))
+  document.querySelector('.tab-body').scrollTop = 0
+}
+
+function addRule(kind) {
+  editingRules.push(newRule(kind))
+  renderRules()
+  const cards = document.querySelectorAll(`#rules-${kind} .rule-card`)
+  if (cards.length) cards[cards.length - 1].scrollIntoView({ block:'nearest' })
+}
+
+function removeRule(idx) {
+  editingRules.splice(idx, 1)
+  renderRules()
+}
+
+function setRule(i, key, value, rerender) {
+  editingRules[i][key] = value
+  if (rerender) renderRules()
+  else runTest(i)
+}
+
+function setFormat(i, id) {
+  const f = CODE_FORMATS.find(f => f.id === id)
+  if (f.pattern) editingRules[i].code_pattern = f.pattern
+  editingRules[i]._custom = id === 'custom'
+  renderRules()
+}
+
+const EMPTY_RULES = {
+  code: () => editingRules.length
+    ? 'No code rules.'
+    : 'No rules – the built-in default rule <code>{code} is your verification code</code> is used.',
+  link: () => 'No link rules.',
+}
+
+function renderRules() {
+  for (const kind of ['code', 'link']) {
+    const rules = editingRules.map((r, i) => [r, i]).filter(([r]) => (r.kind || 'code') === kind)
+    document.getElementById('count-' + kind).textContent = rules.length || ''
+    document.getElementById('rules-' + kind).innerHTML = rules.length
+      ? rules.map(([r, i]) => ruleCard(r, i)).join('')
+      : `<div class="empty-rules">${EMPTY_RULES[kind]()}</div>`
+  }
+  editingRules.forEach((_, i) => runTest(i))
+}
+
+function ruleCard(r, i) {
+  {
+    const isLink = r.kind === 'link'
+    const subjectHasCode = !isLink && (r.subject||'').includes('{code}')
+    const fmt = r._custom ? 'custom' : formatOf(r.code_pattern)
+    return `
+    <div class="rule-card ${r.enabled ? '' : 'disabled'}">
+      <div class="rule-top">
+        <input type="text" value="${esc(r.label||'')}" placeholder="Rule name, e.g. GitHub 2FA" oninput="setRule(${i},'label',this.value)">
+        <label><input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="setRule(${i},'enabled',this.checked,true)"> active</label>
+        <button class="btn-danger btn-xs" title="Remove rule" onclick="removeRule(${i})">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Sender <small>(optional)</small></label>
+        <input value="${esc(r.sender||'')}" placeholder="e.g. noreply@github.com, *@bank.de" oninput="setRule(${i},'sender',this.value)">
+        <div class="hint">Comma-separated, <code>*</code> = any text. Empty = any sender.</div>
+      </div>
+      <div class="form-group">
+        <label>Subject</label>
+        <input value="${esc(r.subject||'')}" placeholder="${isLink ? 'Secure link to log in*' : '{code} is your code'}" oninput="setRule(${i},'subject',this.value)" onchange="renderRules()">
+        <div class="hint">${isLink
+          ? 'Write the subject as it arrives, <code>*</code> for changing text. Case is ignored. Empty = any subject (then a sender is required).'
+          : 'Write the subject as it arrives, put <code>{code}</code> where the code is and <code>*</code> for changing text. Case is ignored. Without <code>{code}</code> the code is read from the body.'}</div>
+      </div>
+      ${isLink ? `
+      <div class="form-group">
+        <label>Link starts with</label>
+        <input class="mono" value="${esc(r.link_prefix||'')}" placeholder="https://claude.ai/magic-link" oninput="setRule(${i},'link_prefix',this.value)">
+        <div class="hint">The first link in the mail body starting with this text is offered for opening. Be specific (domain and path) – only matching links are ever opened.</div>
+      </div>` : ''}
+      ${isLink || subjectHasCode ? '' : `
+      <div class="form-group">
+        <label>Body <small>(code is read from the mail text)</small></label>
+        <input value="${esc(r.body||'')}" placeholder="Your verification code is {code}" oninput="setRule(${i},'body',this.value)">
+        <div class="hint">Text around the code, with <code>{code}</code>. Line breaks don't matter. Empty = first code-like word in the body.</div>
+      </div>`}
+      ${isLink ? '' : `<div class="form-group">
+        <label>Code format</label>
+        <div class="grid-code">
+          <select onchange="setFormat(${i},this.value)">
+            ${CODE_FORMATS.map(f => `<option value="${f.id}" ${f.id===fmt?'selected':''}>${f.label}</option>`).join('')}
+          </select>
+          ${fmt === 'custom'
+            ? `<input class="mono" value="${esc(r.code_pattern||'')}" placeholder="[0-9]{6}" oninput="setRule(${i},'code_pattern',this.value)">`
+            : `<div class="hint mono" style="align-self:center">${esc(r.code_pattern)}</div>`}
+        </div>
+      </div>`}
+      <details class="tester" ${r._testOpen ? 'open' : ''} ontoggle="editingRules[${i}]._testOpen=this.open">
+        <summary>Test this rule</summary>
+        <div class="body">
+          <div class="grid-2">
+            <div class="form-group"><label>From</label><input value="${esc(r._tFrom||'')}" placeholder="noreply@example.com" oninput="editingRules[${i}]._tFrom=this.value;runTest(${i})"></div>
+            <div class="form-group"><label>Subject</label><input value="${esc(r._tSubject||'')}" placeholder="123456 is your code" oninput="editingRules[${i}]._tSubject=this.value;runTest(${i})"></div>
+          </div>
+          <div class="form-group"><label>Body</label><textarea rows="3" oninput="editingRules[${i}]._tBody=this.value;runTest(${i})">${esc(r._tBody||'')}</textarea></div>
+          <div class="test-result" id="test-${i}">Enter a sample mail.</div>
+        </div>
+      </details>
+    </div>`
+  }
+}
+
+function cleanRule(r) {
+  return { label: r.label || 'Rule', kind: r.kind || 'code', sender: r.sender || '', subject: r.subject || '',
+           body: r.body || '', code_pattern: r.code_pattern || '', link_prefix: r.link_prefix || '', enabled: !!r.enabled }
+}
+
+async function runTest(i) {
+  const r = editingRules[i], el = document.getElementById('test-' + i)
+  if (!el) return
+  if (!r._tFrom && !r._tSubject && !r._tBody) { el.className = 'test-result'; el.textContent = 'Enter a sample mail.'; return }
+  try {
+    const code = await invoke('test_rule', { rule: cleanRule(r), from: r._tFrom||'', subject: r._tSubject||'', body: r._tBody||'' })
+    el.className = 'test-result ' + (code ? 'ok' : 'err')
+    el.textContent = code ? `✓ ${r.kind === 'link' ? 'Link' : 'Code'} found: ${code}` : '✗ No match'
+  } catch(e) {
+    el.className = 'test-result err'
+    el.textContent = '⚠ ' + e
+  }
+}
+
+async function saveAccount() {
+  const senderRaw = document.getElementById('f-sender-filter').value
+  const senderFilter = senderRaw ? senderRaw.split(',').map(s => s.trim()).filter(s => s) : []
+
+  const rules = editingRules.map(cleanRule)
+
+  const account = {
+    id: editId || crypto.randomUUID(),
+    label: document.getElementById('f-label').value,
+    server: document.getElementById('f-server').value,
+    port: parseInt(document.getElementById('f-port').value) || 993,
+    security: document.getElementById('f-security').value,
+    allow_invalid_certs: document.getElementById('f-invalid-certs').checked,
+    user: document.getElementById('f-user').value,
+    pass: document.getElementById('f-pass').value,
+    mailbox: document.getElementById('f-mailbox').value || 'INBOX',
+    sender_filter: senderFilter,
+    rules: rules,
+  }
+  try {
+    const cmd = editId ? 'update_account' : 'add_account'
+    await invoke(cmd, { account })
+    hideForm()
+    await loadAccounts()
+    await restartImap()
+    showToast('Account saved.', 'success')
+  } catch(e) {
+    showToast('Error: ' + e, 'error')
+  }
+}
+
+async function deleteAccount(id) {
+  if (!confirm('Delete this account?')) return
+  try {
+    await invoke('remove_account', { id })
+    await loadAccounts()
+    await restartImap()
+    showToast('Account deleted.', 'success')
+  } catch(e) {
+    showToast('Error: ' + e, 'error')
+  }
+}
+
+async function restartImap() {
+  try {
+    await invoke('restart_imap')
+  } catch(e) {}
+}
+
+loadAccounts()
+
+async function setupListeners() {
+  const ev = window.__TAURI__ && window.__TAURI__.event
+  if (!ev) return
+  await ev.listen('auth-code', (event) => {
+    const data = JSON.parse(event.payload)
+    showToast(`${data.account}: ${data.code} (${data.rule})`, 'success')
+  })
+  await ev.listen('account-status', (event) => updateStatus(event.payload))
+  await ev.listen('api-status', (event) => renderApiStatus(event.payload))
+}
+setupListeners()
+invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {})
+</script>
+</body>
+</html>

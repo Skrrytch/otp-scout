@@ -1,0 +1,42 @@
+[package]
+name = "otp-scout"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.90"
+description = "Linux tray app that watches IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive"
+authors = ["Bert Speckels"]
+license = "MIT"
+repository = "https://github.com/Skrrytch/otp-scout"
+keywords = ["otp", "2fa", "imap", "tauri", "tray"]
+categories = ["email", "authentication", "gui"]
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tokio = { version = "1", features = ["full"] }
+async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
+tokio-native-tls = "0.3"
+native-tls = "0.2"
+futures-util = "0.3"
+keyring = { version = "3", features = ["sync-secret-service"] }
+regex = "1"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+dirs = "7"
+uuid = { version = "1", features = ["v4"] }
+tauri-plugin-clipboard-manager = "2"
+mail-parser = "0.11.9"
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json"] }
+tower-http = { version = "0.6", features = ["cors"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

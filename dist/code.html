@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OTP-Scout Code</title>
+<style>
+:root {
+  --bg:#ffffff; --surface-2:#eef1f7; --border:#d5dbe7; --text:#1c2333; --muted:#5b667a;
+  --accent:#2563eb; --accent-hover:#1d4ed8; --ok:#16a34a; --danger:#dc2626;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#1d2230; --surface-2:#262c3d; --border:#343c52; --text:#e8ecf4; --muted:#a3adc2;
+          --accent:#4f8cff; --accent-hover:#6b9fff; --ok:#22c55e; --danger:#ef4444; }
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { overflow:hidden; }
+body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:var(--bg); color:var(--text);
+       border:1px solid var(--border); user-select:none; }
+#list { max-height:calc(100vh - 2px); overflow-y:auto; }
+.entry { padding:14px 16px 0; position:relative; }
+.entry + .entry { border-top:1px solid var(--border); }
+.entry:not(:first-child) { opacity:.85; }
+.top { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
+.top img { width:18px; height:18px; }
+.top b { color:var(--text); font-weight:600; }
+.top .count { background:var(--accent); color:#fff; border-radius:9px; font-size:11px; padding:0 6px; font-weight:600; }
+.close { margin-left:auto; background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:2px 6px; border-radius:4px; }
+.close:hover { background:var(--surface-2); color:var(--text); }
+.code { margin:12px 0 6px; text-align:center; font-family:ui-monospace,"JetBrains Mono","DejaVu Sans Mono",monospace;
+        font-size:40px; font-weight:700; letter-spacing:.12em; cursor:pointer; border-radius:8px; padding:4px 0;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s; }
+.code:hover { background:var(--surface-2); }
+.code.link { font-family:inherit; font-size:22px; letter-spacing:0; font-weight:650; color:var(--accent); padding:12px 0; }
+.meta { font-size:12px; color:var(--muted); text-align:center; line-height:1.5; }
+.meta div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.meta .subject { color:var(--text); }
+.actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 14px; }
+.actions.single { grid-template-columns:1fr; }
+.btn { padding:9px; border:none; border-radius:8px; background:var(--accent); color:#fff;
+       font-size:14px; font-weight:600; font-family:inherit; cursor:pointer; transition:background .15s; }
+.btn:hover { background:var(--accent-hover); }
+.btn.danger { background:transparent; color:var(--danger); border:1px solid var(--danger); }
+.btn.danger:hover { background:var(--danger); color:#fff; }
+.btn.done { background:var(--ok); border-color:var(--ok); color:#fff; }
+.btn:disabled { opacity:.6; cursor:default; }
+.error { font-size:11.5px; color:var(--danger); text-align:center; margin:-6px 0 10px; }
+.bar { height:3px; margin:0 -16px; background:var(--surface-2); }
+.bar div { height:100%; width:100%; background:var(--accent); transform-origin:left; }
+</style>
+</head>
+<body>
+<div id="list"></div>
+<script>
+const TIMEOUT_MS = 120000
+const MAX_ENTRIES = 5
+const core = window.__TAURI__.core
+const LABELS = {
+  code: { primary:'Copy', destroy:'Copy and destroy', done:'✓ Copied', destroyed:'✓ Copied & deleted', failed:'Copied, but delete failed: ' },
+  link: { primary:'Open link', destroy:'Open and destroy', done:'✓ Opened', destroyed:'✓ Opened & deleted', failed:'Opened, but delete failed: ' },
+}
+
+// Newest first. Each entry: { id, data, deadline, busy, done, error }
+let entries = []
+let nextId = 1
+let paused = false
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+const isLink = e => e.data.kind === 'link'
+const labels = e => LABELS[isLink(e) ? 'link' : 'code']
+const byId = id => entries.find(e => e.id === id)
+
+// "claude.ai/magic-link" instead of the full token URL
+function shortLink(url) {
+  try { const u = new URL(url); return u.host + (u.pathname === '/' ? '' : u.pathname) } catch { return url }
+}
+
+function add(payload) {
+  const data = typeof payload === 'string' ? JSON.parse(payload) : payload
+  // The same code/link again (e.g. a duplicate request) refreshes the existing entry.
+  const dup = entries.find(e => e.data.code === data.code && e.data.kind === data.kind)
+  if (dup) entries = entries.filter(e => e !== dup)
+  entries.unshift({ id: nextId++, data, deadline: Date.now() + TIMEOUT_MS })
+  entries = entries.slice(0, MAX_ENTRIES)
+  render()
+}
+
+function remove(id) {
+  entries = entries.filter(e => e.id !== id)
+  if (!entries.length) core.invoke('hide_code_popup')
+  render()
+}
+
+function render() {
+  const total = entries.length
+  document.getElementById('list').innerHTML = entries.map((e, i) => {
+    const d = e.data, l = labels(e), canDestroy = d.uid != null
+    return `
+    <div class="entry" data-id="${e.id}">
+      <div class="top">
+        <img src="icon.png" alt="">
+        <span><b>${esc(d.account || 'OTP-Scout')}</b> · ${esc(d.rule || '')}</span>
+        ${i === 0 && total > 1 ? `<span class="count" title="${total} pending">${total}</span>` : ''}
+        <button class="close" title="Dismiss${i === 0 ? ' (Esc)' : ''}" onclick="remove(${e.id})">✕</button>
+      </div>
+      <div class="code ${isLink(e) ? 'link' : ''}" title="${isLink(e) ? esc(d.code) + '\n\nClick to open' : 'Click to copy'}"
+           onclick="primary(${e.id})">${isLink(e) ? '🔗 ' + esc(shortLink(d.code)) : esc(d.code)}</div>
+      <div class="meta"><div>${esc(d.from || '')}</div><div class="subject">${esc(d.subject || '')}</div></div>
+      <div class="actions ${canDestroy ? '' : 'single'}">
+        <button class="btn ${e.done === 'primary' ? 'done' : ''}" ${e.busy ? 'disabled' : ''} onclick="primary(${e.id})">${e.done === 'primary' ? l.done : l.primary}</button>
+        ${canDestroy ? `<button class="btn danger ${e.done === 'destroy' ? 'done' : ''}" ${e.busy ? 'disabled' : ''} onclick="destroy(${e.id})">${
+          e.done === 'destroy' ? l.destroyed : e.busy ? 'Deleting…' : l.destroy}</button>` : ''}
+      </div>
+      ${e.error ? `<div class="error">${esc(e.error)}</div>` : ''}
+      <div class="bar"><div></div></div>
+    </div>`
+  }).join('')
+  tick()
+  // Grow/shrink the window to fit the stack.
+  requestAnimationFrame(() => {
+    const h = Math.ceil(document.getElementById('list').scrollHeight) + 2
+    core.invoke('resize_code_popup', { height: h })
+  })
+}
+
+function tick() {
+  const now = Date.now()
+  for (const e of [...entries]) {
+    if (paused || e.busy) e.deadline += 250
+    const left = e.deadline - now
+    const bar = document.querySelector(`.entry[data-id="${e.id}"] .bar div`)
+    if (bar) bar.style.transform = `scaleX(${Math.max(0, left / TIMEOUT_MS)})`
+    if (left <= 0) remove(e.id)
+  }
+}
+
+function finish(e, what) {
+  e.done = what
+  e.busy = false
+  render()
+  setTimeout(() => remove(e.id), 1200)
+}
+
+// Copy a code / open a link
+async function act(e) {
+  if (isLink(e)) await core.invoke('open_link', { url: e.data.code })
+  else await core.invoke('copy_code', { code: e.data.code })
+}
+
+async function primary(id) {
+  const e = byId(id)
+  if (!e || e.busy) return
+  try { await act(e); finish(e, 'primary') }
+  catch (err) { e.error = String(err); render() }
+}
+
+async function destroy(id) {
+  const e = byId(id)
+  if (!e || e.busy || e.data.uid == null) return
+  try { await act(e) } catch (err) { e.error = String(err); render(); return }
+  e.busy = true
+  e.error = null
+  render()
+  try {
+    await core.invoke('delete_mail', { accountId: e.data.account_id, uid: e.data.uid })
+    finish(e, 'destroy')
+  } catch (err) {
+    e.busy = false
+    e.error = labels(e).failed + err
+    render()
+  }
+}
+
+setInterval(tick, 250)
+document.body.addEventListener('mouseenter', () => paused = true)
+document.body.addEventListener('mouseleave', () => paused = false)
+document.addEventListener('keydown', ev => {
+  const top = entries[0]
+  if (!top) return
+  if (ev.key === 'Escape') remove(top.id)
+  else if (ev.key === 'Enter') primary(top.id)
+  else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'c') {
+    core.invoke('copy_code', { code: top.data.code }).then(() => finish(top, 'primary'))
+  }
+})
+
+window.__TAURI__.event.listen('show-code', ev => add(ev.payload))
+core.invoke('get_last_code').then(p => p && add(p))
+</script>
+</body>
+</html>

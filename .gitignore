@@ -1,0 +1,14 @@
+# Build output
+/src-tauri/target/
+/src-tauri/gen/
+
+# Local tooling / assistant instructions
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# Editors & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

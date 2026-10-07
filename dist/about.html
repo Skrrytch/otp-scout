@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>About OTP-Scout</title>
+<style>
+:root { --bg:#f4f6fb; --text:#1c2333; --muted:#5b667a; --accent:#2563eb; --border:#d5dbe7; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14171f; --text:#e8ecf4; --muted:#a3adc2; --accent:#4f8cff; --border:#343c52; }
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; }
+body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:var(--bg); color:var(--text);
+       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:20px; }
+img { width:96px; height:96px; margin-bottom:10px; }
+h1 { font-size:20px; font-weight:650; }
+.short { color:var(--muted); font-size:13px; font-style:italic; }
+.version { margin-top:8px; font-size:13px; padding:3px 10px; border:1px solid var(--border); border-radius:999px; }
+p { margin-top:12px; font-size:12px; color:var(--muted); max-width:280px; line-height:1.45; }
+</style>
+</head>
+<body>
+  <img src="icon.png" alt="">
+  <h1 id="name">OTP-Scout</h1>
+  <div class="short" id="tagline">your one-time password helper</div>
+  <div class="version">Version <span id="version">–</span></div>
+  <p>Watches your IMAP mailboxes for authentication codes and shows them instantly.</p>
+<script>
+(async () => {
+  const core = window.__TAURI__ && window.__TAURI__.core
+  if (!core) return
+  const info = await core.invoke('get_app_info')
+  document.getElementById('name').textContent = info.name
+  document.getElementById('tagline').textContent = info.tagline
+  document.getElementById('version').textContent = info.version
+})()
+</script>
+</body>
+</html>
