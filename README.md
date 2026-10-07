@@ -2,136 +2,103 @@
 
 *your one-time password helper*
 
-**OTP-Scout watches your IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive — copy the code or open the link with one click, without opening your mail client.**
+**OTP-Scout watches your mailboxes and pops up one-time passwords and magic login links the moment they arrive — copy the code or open the link with one click, without opening your mail client.**
 
-A lightweight Linux system-tray app built with Rust and Tauri.
+You log in somewhere, the site sends you a code by email — and instead of switching to your mail program, waiting, searching and copying, the code simply appears on your screen:
 
-## How It Works
-
-OTP-Scout sits in your system tray and keeps a connection to each of your IMAP accounts using [IDLE](https://tools.ietf.org/html/rfc2177) — the server pushes new mail instantly, nothing is polled. When a new email arrives, its sender and subject are checked against your rules. On a match, a small popup appears in the middle of your screen showing the code in large type (one click copies it) or the login link (one click opens it). The mail body is only downloaded when a rule needs it.
-
-No more switching to your email client, waiting for sync, scrolling through threads, and squinting at 6-digit numbers.
-
-## Features
-
-- **Real-time IMAP IDLE** — push instead of polling, with automatic reconnect (exponential backoff) and detection of silently dropped connections
-- **Multi-account support** — monitor several mailboxes at once, each with its own rules
-- **Code rules** — match sender and subject like `{code} is your verification code`; the code is taken from the subject or from the body
-- **Link rules** — detect login links such as magic links by their start (e.g. `https://claude.ai/magic-link`) and open them in the browser
-- **Popup with actions** — copy / open with one click, optionally *… and destroy* to delete the mail right away; several messages stack up
-- **Built-in rule tester** — try every rule with a sample mail directly in the settings dialog
-- **Robust MIME parsing** — multipart, quoted-printable, base64, charsets and HTML mails
-- **SSL/TLS and STARTTLS** — including self-signed certificates, e.g. for [Proton Mail Bridge](https://proton.me/mail/bridge)
-- **Local HTTP API** — let browser scripts (Tampermonkey) show codes and links in the same popup, token-protected
-- **Connection status** — every account shows the result of its last communication
-- **System keyring** — passwords and the API token are stored in your OS keyring, never in plain text
-- **Light and dark theme** — follows your desktop's color scheme
-
-## System Requirements
-
-- **Linux** with GTK 3, WebKit2GTK 4.1 and libayatana-appindicator3
-- **Rust** 1.90 or later
-
-### Install build dependencies (Debian / Ubuntu / Mint)
-
-```bash
-sudo apt install build-essential pkg-config \
-  libwebkit2gtk-4.1-dev libgtk-3-dev \
-  libayatana-appindicator3-dev \
-  libssl-dev libdbus-1-dev
+```
+┌──────────────────────────────────┐
+│  Gmail · GitHub               ✕  │
+│                                  │
+│            4 8 2 9 1 3           │
+│                                  │
+│  [   Copy   ] [Copy and destroy] │
+└──────────────────────────────────┘
 ```
 
-## Build & Run
+One click and it is in your clipboard. Paste it, done.
 
-```bash
-git clone https://github.com/Skrrytch/otp-scout.git
-cd otp-scout/src-tauri
-cargo build --release
-./target/release/otp-scout
-```
+## What It Does for You
 
-The app starts in the system tray. Its menu offers **Check now**, **Settings**, **About** and **Quit**.
+- **Codes appear instantly.** As soon as the email arrives, the code pops up in the middle of your screen — no refreshing, no waiting.
+- **One click to copy.** Click the code (or press Enter) and paste it wherever you need it.
+- **Login links, too.** Some services (like Claude) send a link instead of a code. OTP-Scout recognizes it and opens it in your browser with one click.
+- **Keep your inbox clean.** *Copy and destroy* copies the code and deletes the email in one go.
+- **All your mailboxes.** Gmail, Outlook, your company account, Proton Mail via the Bridge — as many as you like.
+- **You decide what counts.** Tell OTP-Scout what the emails look like (sender, subject) and try your rules with a sample email right in the settings.
+- **Out of your way.** It lives quietly in the system tray and only shows up when there is something for you.
+- **Your passwords stay safe.** They are kept in your system's keyring, never in a plain text file.
 
-## Configuration
+## Install
 
-Everything is configured in the settings window (tray menu → **Settings**). It has two tabs:
+For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
 
-- **Accounts** — your IMAP accounts, each with the tabs *Connection*, *Code rules* and *Link rules*
-- **API** — the local HTTP API
+1. Download the `.deb` file from the [latest release](https://github.com/Skrrytch/otp-scout/releases/latest).
+2. Install it — double-click it, or in a terminal:
+   ```bash
+   sudo apt install ./otp-scout_*_amd64.deb
+   ```
+3. Start **OTP-Scout** from your application menu. A magnifying-glass icon appears in the system tray.
 
-The configuration is stored in `~/.config/otp-scout/config.json`; see [INTERNAL.md](INTERNAL.md) for the full schema.
+## Getting Started
 
-### Code Rules
+1. Click the tray icon and choose **Settings**.
+2. Click **+ Add account** and enter your mail server, username and password.
+   - **Gmail:** server `imap.gmail.com`, and an [app password](https://myaccount.google.com/apppasswords) instead of your normal password.
+   - **Proton Mail:** see [below](#proton-mail).
+3. Save — the account card shows whether the connection works.
+4. Send yourself a test: an email with the subject `123456 is your verification code` pops up right away.
 
-| Field | Example | Meaning |
-|---|---|---|
-| Sender (optional) | `noreply@github.com, *@bank.de` | Comma-separated globs, `*` = any text |
-| Subject | `{code} is your code` | The subject as it arrives; `{code}` marks the code, `*` matches changing text; case-insensitive |
-| Body | `Your code is {code}` | Only used if the subject contains no `{code}`. Empty = first code-like word in the body |
-| Code format | Digits (4–8) | Digits, letters/digits, or a custom regex |
+## Rules: Telling OTP-Scout What to Look For
 
-Without any rule, the built-in default `{code} is your verification code` is used.
+Out of the box, OTP-Scout recognizes emails whose subject reads like *"123456 is your verification code"*. For other services, add your own rules when editing an account.
 
-### Link Rules
+### Code rules
 
-| Field | Example | Meaning |
-|---|---|---|
-| Sender (optional) | `*@mail.anthropic.com` | As above |
-| Subject | `Secure link to log in*` | As above, without `{code}` |
-| Link starts with | `https://claude.ai/magic-link` | The first link in the body with this prefix is offered for opening |
+Describe the email the way it arrives and mark where the code is with `{code}`:
 
-Rules are evaluated in order; the first match wins. A sender or a subject is required for every rule.
-
-### Proton Mail Bridge
-
-The bridge listens locally with STARTTLS and a self-signed certificate. Use server `127.0.0.1`, port `1143`, encryption **STARTTLS**, enable **Accept self-signed certificate**, and enter the bridge password shown in the Bridge app.
-
-### Local API (Tampermonkey & co.)
-
-In the **API** tab you can enable a local HTTP server (off by default, `127.0.0.1:6870`) that shows codes and links in the same popup.
-
-| Endpoint | Body |
+| You enter | Matches emails like |
 |---|---|
-| `POST /api/otp/code` | `{"code": "123456", "ruleName": "GitHub"}` |
-| `POST /api/otp/link` | `{"link": "https://…", "ruleName": "My site"}` |
+| Subject: `{code} is your code` | *482913 is your code* |
+| Subject: `Your * login code: {code}` | *Your GitHub login code: 482913* |
+| Sender: `noreply@github.com` | only emails from GitHub |
 
-- Every request needs the header `X-OTP-Scout-Token`. The token is shown in the API tab, stored in the keyring and can be regenerated.
-- Links must use `https://`. If **Allowed links** is filled, they must start with one of its entries.
-- CORS is open (`*`), but nothing is accepted without the token. In Tampermonkey, use `GM_xmlhttpRequest` with `@connect 127.0.0.1` so the visited page never sees the token. A ready-made script is shown in the API tab.
-- Responses: `200 {"ok":true}`, `400` invalid body, `401` missing or wrong token, `403` link not allowed.
+Use `*` for parts that change. Upper/lower case doesn't matter.
 
-## Architecture
+If the code is not in the subject but in the email text, leave `{code}` out of the subject and describe the text around the code instead, e.g. `Your verification code is {code}`.
 
-```
-dist/                — Settings, popup and about pages (HTML/CSS/JS)
-src-tauri/src/
-├── main.rs          — App setup, tray menu, IPC commands, popup, reconnect loop
-├── config.rs        — JSON config, keyring storage
-├── rules.rs         — Rule model and matching (sender, subject, code, link)
-├── imap.rs          — IMAP IDLE loop, SSL/STARTTLS, two-stage fetch, MIME parsing, delete
-├── api.rs           — Local HTTP API
-├── status.rs        — Per-account connection status
-└── html.rs          — HTML-to-text conversion
-```
+### Link rules
 
-| Component | Technology |
-|---|---|
-| Desktop framework | [Tauri v2](https://v2.tauri.app/) |
-| Async runtime | [Tokio](https://tokio.rs/) |
-| IMAP client | [async-imap](https://crates.io/crates/async-imap) |
-| MIME parsing | [mail-parser](https://crates.io/crates/mail-parser) |
-| TLS | native-tls (OpenSSL) |
-| HTTP API | [axum](https://crates.io/crates/axum) |
-| Password storage | [keyring](https://crates.io/crates/keyring) (Secret Service) |
+For services that send a login link instead of a code: enter the sender and/or subject, and how the link starts, e.g. `https://claude.ai/magic-link`. Only links starting exactly like this are ever offered.
 
-## Development
+### Try before you save
 
-```bash
-cd src-tauri
-cargo test                    # unit tests
-cargo test -- --ignored       # + integration test against a local Proton Mail Bridge
-cargo clippy --all-targets
-```
+Every rule has a **Test this rule** box: paste a sample subject or email text and see immediately whether the code or link is found.
+
+## Proton Mail
+
+OTP-Scout works with the [Proton Mail Bridge](https://proton.me/mail/bridge). In the account settings use:
+
+- Server `127.0.0.1`, port `1143`
+- Encryption **STARTTLS**
+- **Accept self-signed certificate** ✔
+- The username and the *bridge password* shown in the Bridge app
+
+## Codes from Your Browser
+
+Optionally, OTP-Scout can receive codes and links from browser scripts (e.g. Tampermonkey) and show them in the same popup. Turn it on in **Settings → API** — you'll find a ready-to-use script there. Details for script authors are in [DEVELOPMENT.md](DEVELOPMENT.md#local-http-api).
+
+## Good to Know
+
+- **Tray menu:** *Check now* checks all mailboxes immediately, *Settings*, *About*, *Quit*.
+- **Connection problems** are shown on the account card and as a desktop notification; OTP-Scout reconnects automatically.
+- **Several codes at once** are stacked in the popup; each one disappears after two minutes.
+- **Your emails stay unread.** OTP-Scout only reads what it needs and doesn't mark anything as read.
+- **Uninstall:** `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
+
+## For Developers
+
+Building from source, architecture and the API reference: see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## License
 

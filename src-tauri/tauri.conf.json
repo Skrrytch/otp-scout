@@ -1,13 +1,43 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OTP-Scout",
+  "mainBinaryName": "otp-scout",
   "version": "0.1.0",
-  "identifier": "dev.otpscout.app",
+  "identifier": "net.speckels.otpscout",
   "build": {
     "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": []
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb"
+    ],
+    "publisher": "Bert Speckels <skrrytch@speckels.net>",
+    "copyright": "© 2026 Bert Speckels",
+    "license": "MIT",
+    "homepage": "https://github.com/Skrrytch/otp-scout",
+    "category": "Utility",
+    "shortDescription": "Pops up one-time passwords and magic login links from your mailboxes",
+    "longDescription": "OTP-Scout watches your IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive - copy the code or open the link with one click, without opening your mail client.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "xdg-utils"
+        ],
+        "recommends": [
+          "gnome-keyring"
+        ]
+      }
+    }
   }
 }

@@ -446,7 +446,7 @@ fn main() {
                 .item(&quit)
                 .build()?;
 
-            let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))
+            let icon = Image::from_bytes(include_bytes!("../icons/128x128.png"))
                 .expect("failed to load tray icon");
 
             let settings_handle = settings.clone();
