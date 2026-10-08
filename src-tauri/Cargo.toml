@@ -1,6 +1,6 @@
 [package]
 name = "otp-scout"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.90"
 description = "Linux tray app that watches IMAP mailboxes and pops up one-time passwords and magic login links the moment they arrive"
