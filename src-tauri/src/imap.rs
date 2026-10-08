@@ -265,14 +265,6 @@ pub async fn run_idle_loop(
                     timings: log::Timings { headers: ms(check_started), ..Default::default() },
                 };
 
-                if !rules::sender_matches(&account.sender_filter, from.as_deref().unwrap_or("")) {
-                    tracing::debug!("[{}] Skipping mail from {:?} – sender filter", account.label, from);
-                    entry.outcome = log::Outcome::Filtered;
-                    entry.timings.done = ms(check_started);
-                    log::mail(&app, &account.id, &account.label, entry);
-                    continue;
-                }
-
                 let subject_str = subject.as_deref().unwrap_or("");
                 let from_str = from.as_deref().unwrap_or("");
                 // Body is fetched lazily, at most once, and only for header matches.

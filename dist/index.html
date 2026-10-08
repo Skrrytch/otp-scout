@@ -164,7 +164,7 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
 .log-row .time { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; padding-top:1px; }
 .log-row .sym.found { color:var(--ok); }
 .log-row .sym.partial { color:var(--warn); }
-.log-row .sym.no_match, .log-row .sym.filtered { color:var(--muted); }
+.log-row .sym.no_match { color:var(--muted); }
 .log-row .sym.error { color:var(--danger); }
 .log-row .main { min-width:0; }
 .log-row .line { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -263,11 +263,6 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
           <label>Password <small>(system keyring)</small></label>
           <input id="f-pass" type="password" autocomplete="new-password">
         </div>
-      </div>
-      <div class="form-group">
-        <label>Allowed senders for all rules <small>(optional)</small></label>
-        <input id="f-sender-filter" placeholder="e.g. *@github.com, noreply@*">
-        <div class="hint">Comma-separated, <code>*</code> = any text. Empty = mails from any sender are checked.</div>
       </div>
       <div class="form-actions">
         <button class="left" onclick="testConnection()">Test connection</button>
@@ -536,7 +531,6 @@ function openAccount(id) {
   document.getElementById('f-user').value = a.user || ''
   document.getElementById('f-pass').value = ''
   document.getElementById('f-mailbox').value = a.mailbox || 'INBOX'
-  document.getElementById('f-sender-filter').value = (a.sender_filter || []).join(', ')
   document.getElementById('test-conn').innerHTML = ''
   document.getElementById('acc-tag-card').style.display = id ? '' : 'none'
   document.getElementById('acc-delete-bar').style.display = id ? '' : 'none'
@@ -565,7 +559,6 @@ function onSecurityChange() {
 }
 
 function accountForm() {
-  const senderRaw = document.getElementById('f-sender-filter').value
   return {
     id: editAccountId || crypto.randomUUID(),
     label: document.getElementById('f-label').value,
@@ -576,7 +569,6 @@ function accountForm() {
     user: document.getElementById('f-user').value.trim(),
     pass: document.getElementById('f-pass').value,
     mailbox: document.getElementById('f-mailbox').value || 'INBOX',
-    sender_filter: senderRaw ? senderRaw.split(',').map(s => s.trim()).filter(s => s) : [],
   }
 }
 
@@ -1081,7 +1073,7 @@ function otpScout(kind, value, ruleName) {
 // ================= Log =================
 let logEntries = [], logPaused = false, logPending = [], logOpen = null
 const revealed = new Set()
-const SYM = { found:'✓', partial:'⚠', no_match:'✗', filtered:'⊘' }
+const SYM = { found:'✓', partial:'⚠', no_match:'✗' }
 
 async function loadLog() {
   try {
@@ -1142,7 +1134,6 @@ function resultText(e) {
       const f = t.stages.find(s => !s.ok)
       return `→ rule „${esc(t.rule)}“: headers match, ${f ? `${esc(STAGE_LABEL[f.stage])} ${esc(f.detail)}` : 'body not loaded'}`
     }
-    case 'filtered': return '→ skipped by the account’s sender filter'
     default: return e.traces.length ? '→ no rule matches' : '→ no active rules'
   }
 }

@@ -48,8 +48,6 @@ pub struct AccountConfig {
     /// Rules of versions up to 0.2.0, only read to move them to `rules.json`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<DetectionRule>,
-    #[serde(default)]
-    pub sender_filter: Vec<String>,
 }
 
 impl Default for AccountConfig {
@@ -66,7 +64,6 @@ impl Default for AccountConfig {
             mailbox: "INBOX".to_string(),
             tag: String::new(),
             rules: vec![],
-            sender_filter: vec![],
         }
     }
 }
@@ -230,7 +227,6 @@ pub fn update_account(
         existing.allow_invalid_certs = account.allow_invalid_certs;
         existing.user = std::mem::take(&mut account.user);
         existing.mailbox = std::mem::take(&mut account.mailbox);
-        existing.sender_filter = std::mem::take(&mut account.sender_filter);
     }
     save_config(&cfg)?;
     Ok(cfg.accounts.clone())
@@ -355,4 +351,19 @@ pub fn with_stored_password(mut account: AccountConfig) -> Result<AccountConfig>
         account.pass = load_password(&account.id).context("Enter the password")?;
     }
     Ok(account)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ignores_removed_sender_filter() {
+        let cfg: AppConfig = serde_json::from_str(
+            r#"{"accounts":[{"id":"a","label":"A","server":"s","port":993,"user":"u","mailbox":"INBOX","sender_filter":["*@x.de"]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(cfg.accounts[0].label, "A");
+        assert!(!serde_json::to_string(&cfg).unwrap().contains("sender_filter"));
+    }
 }

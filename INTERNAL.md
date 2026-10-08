@@ -38,11 +38,6 @@ This document describes every file and system artifact that OTP-Scout creates or
       // Mailbox to watch (default: "INBOX")
       "mailbox": "INBOX",
 
-      // Glob patterns for sender filtering.
-      // Empty array = accept all senders.
-      // "*" matches any substring, case-insensitive.
-      "sender_filter": ["*@example.com", "noreply@github.com"],
-
       // Assigns rules to this account (see rules.json). Derived from the
       // label on creation, unchanged when the account is renamed.
       "tag": "my-gmail"
@@ -78,7 +73,6 @@ The API token is stored in the keyring (service `otp-scout`, username `api-token
 | `accounts[].allow_invalid_certs` | bool | no | `false` | Accept self-signed certificates (e.g. Proton Mail Bridge) |
 | `accounts[].user` | string | yes | `""` | IMAP login username |
 | `accounts[].mailbox` | string | no | `"INBOX"` | Mailbox to monitor |
-| `accounts[].sender_filter` | string[] | no | `[]` | Glob patterns for sender whitelist |
 | `accounts[].tag` | string | no | auto | Unique tag assigning rules to this account |
 
 Versions up to 0.2.0 kept the rules in `accounts[].rules`. On first start they are moved to `rules.json`, each tagged with its account; identical rules are merged. The old file is kept as `config.json.bak`.
@@ -183,15 +177,12 @@ Matching is case-insensitive.
 
 ### Detection Rule Evaluation
 
-New emails are all emails with a UID above the last one handled, read or not; on connect the newest existing email marks the start. For each new email only the header is fetched first, then:
-
-1. **Account sender filter**: if `sender_filter` is non-empty and `From` matches none of its globs, the email is skipped.
-2. The rules carrying the account's tag or `*` are evaluated in order; the first rule that yields a code wins. Per rule:
-   - `sender` (if set) must match `From`, and `subject` (if set) must match the subject.
-   - If `subject` contains `{code}`, the code is taken from the subject.
-   - Otherwise the body is fetched (`BODY.PEEK[]`, at most once per email, mail stays unread) and decoded with `mail-parser` (multipart, quoted-printable, base64, charsets).
-   - Code rules apply `body` to the plain text (HTML converted if there is no text part).
-   - Link rules search the HTML (`href` targets) and the text for the first `http(s)://` URL starting with `link_prefix` (case-insensitive).
+New emails are all emails with a UID above the last one handled, read or not; on connect the newest existing email marks the start. For each new email only the header is fetched first, then the rules carrying the account's tag or `*` are evaluated in order; the first rule that yields a code wins. Per rule:
+- `sender` (if set) must match `From`, and `subject` (if set) must match the subject.
+- If `subject` contains `{code}`, the code is taken from the subject.
+- Otherwise the body is fetched (`BODY.PEEK[]`, at most once per email, mail stays unread) and decoded with `mail-parser` (multipart, quoted-printable, base64, charsets).
+- Code rules apply `body` to the plain text (HTML converted if there is no text part).
+- Link rules search the HTML (`href` targets) and the text for the first `http(s)://` URL starting with `link_prefix` (case-insensitive).
 
 ---
 

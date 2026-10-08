@@ -504,7 +504,7 @@ pub fn glob_match(pattern: &str, value: &str) -> bool {
     true
 }
 
-pub fn sender_matches(filters: &[String], from: &str) -> bool {
+fn sender_matches(filters: &[String], from: &str) -> bool {
     if filters.is_empty() {
         return true;
     }

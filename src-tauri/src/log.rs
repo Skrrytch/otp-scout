@@ -39,8 +39,6 @@ pub enum Outcome {
     Partial,
     /// No rule matched the headers.
     NoMatch,
-    /// Rejected by the account's sender filter before any rule.
-    Filtered,
 }
 
 /// One checked mail. Holds headers and results, never the mail text.
