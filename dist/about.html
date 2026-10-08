@@ -29,6 +29,8 @@ p { margin-top:12px; font-size:12px; color:var(--muted); max-width:280px; line-h
 (async () => {
   const core = window.__TAURI__ && window.__TAURI__.core
   if (!core) return
+  // keyup: after the window is re-shown, WebKitGTK drops the first keydown.
+  document.addEventListener('keyup', ev => { if (ev.key === 'Escape') core.invoke('hide_window') })
   const info = await core.invoke('get_app_info')
   document.getElementById('name').textContent = info.name
   document.getElementById('tagline').textContent = info.tagline

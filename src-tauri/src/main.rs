@@ -110,6 +110,12 @@ fn show_about(app: AppHandle) {
     }
 }
 
+/// Hides the calling window (Esc in About and Settings); closing only hides them anyway.
+#[tauri::command]
+fn hide_window(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+}
+
 /// Immediate IMAP check: wakes running connections, reconnects failed ones.
 #[tauri::command]
 async fn check_now(app: AppHandle) -> Result<(), String> {
@@ -463,6 +469,7 @@ fn main() {
             delete_rule,
             move_rule,
             show_about,
+            hide_window,
             get_status,
             get_log,
             clear_log,

@@ -1242,6 +1242,14 @@ async function setupListeners() {
   await ev.listen('log-entry', (event) => onLogEntry(event.payload))
 }
 
+// Esc hides the window, but not while an account or rule is being edited.
+// keyup: after the window is re-shown, WebKitGTK drops the first keydown.
+document.addEventListener('keyup', ev => {
+  if (ev.key !== 'Escape') return
+  const editing = ['accounts-detail-view', 'rules-detail-view'].some(id => document.getElementById(id).style.display !== 'none')
+  if (!editing) invoke('hide_window').catch(() => {})
+})
+
 go('accounts')
 setupListeners()
 invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {})
