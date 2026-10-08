@@ -17,6 +17,7 @@ mod catalog;
 mod config;
 mod html;
 mod imap;
+mod rule_store;
 mod rules;
 mod status;
 

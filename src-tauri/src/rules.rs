@@ -25,6 +25,15 @@ pub enum RuleKind {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(from = "RawRule")]
 pub struct DetectionRule {
+    /// Stable identifier in `rules.json`. Empty for catalog and unsaved rules.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub id: String,
+    /// Accounts checking this rule: account tags or `*` for all. Empty = none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    /// Origin in the catalog, if the rule was taken from there.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub catalog: Option<CatalogRef>,
     pub label: String,
     pub kind: RuleKind,
     /// Comma-separated sender globs, e.g. `*@github.com, noreply@*`. Empty = any sender.
@@ -40,6 +49,28 @@ pub struct DetectionRule {
     pub enabled: bool,
 }
 
+/// Tag that assigns a rule to every account, including future ones.
+pub const ALL_ACCOUNTS: &str = "*";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CatalogRef {
+    pub app: String,
+    pub lang: String,
+}
+
+impl DetectionRule {
+    /// Whether the account with `tag` checks this rule.
+    pub fn applies_to(&self, tag: &str) -> bool {
+        self.tags.iter().any(|t| t == ALL_ACCOUNTS || t == tag)
+    }
+
+    /// Same matching behaviour, ignoring id, tags and catalog origin.
+    pub fn same_content(&self, other: &Self) -> bool {
+        let strip = |r: &Self| Self { id: String::new(), tags: vec![], catalog: None, ..r.clone() };
+        strip(self) == strip(other)
+    }
+}
+
 /// Decoded mail body: the plain text (HTML converted if there is no text
 /// part) and the raw HTML, which still contains the `href` targets.
 #[derive(Debug, Default)]
@@ -51,6 +82,12 @@ pub struct MailBody {
 /// Accepts both the current and the legacy (search_field/context/capture) format.
 #[derive(Deserialize)]
 struct RawRule {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    catalog: Option<CatalogRef>,
     #[serde(default)]
     label: String,
     #[serde(default)]
@@ -85,6 +122,9 @@ impl From<RawRule> for DetectionRule {
         let legacy = r.subject.is_none() && r.body.is_none() && r.search_field.is_some();
         if !legacy {
             return Self {
+                id: r.id,
+                tags: r.tags,
+                catalog: r.catalog,
                 label: r.label,
                 kind: r.kind,
                 link_prefix: r.link_prefix,
@@ -107,6 +147,9 @@ impl From<RawRule> for DetectionRule {
             _ => (String::new(), code, String::new()),
         };
         Self {
+            id: r.id,
+            tags: r.tags,
+            catalog: r.catalog,
             label: r.label,
             kind: RuleKind::Code,
             link_prefix: String::new(),
@@ -125,6 +168,9 @@ impl From<RawRule> for DetectionRule {
 impl Default for DetectionRule {
     fn default() -> Self {
         Self {
+            id: String::new(),
+            tags: vec![],
+            catalog: None,
             label: "Default".into(),
             kind: RuleKind::Code,
             link_prefix: String::new(),
@@ -466,6 +512,9 @@ mod tests {
 
     fn rule(sender: &str, subject: &str, body: &str) -> DetectionRule {
         DetectionRule {
+            id: String::new(),
+            tags: vec![],
+            catalog: None,
             label: "T".into(),
             kind: RuleKind::Code,
             link_prefix: String::new(),
@@ -565,6 +614,16 @@ mod tests {
         let body = MailBody { text: "https://claude.ai/help".into(), html: String::new() };
         let t = c.trace("no-reply@mail.anthropic.com", "Secure link to log in", Some(&body));
         assert_eq!(t.stages.last().map(|s| (s.stage, s.ok)), Some((Stage::Link, false)));
+    }
+
+    #[test]
+    fn test_same_content_ignores_identity() {
+        let a = DetectionRule { id: "1".into(), tags: vec!["a".into()], ..rule("", "x {code}", "") };
+        let b = DetectionRule { id: "2".into(), tags: vec!["b".into()], ..rule("", "x {code}", "") };
+        assert!(a.same_content(&b));
+        assert!(!a.same_content(&rule("", "y {code}", "")));
+        assert!(a.applies_to("a") && !a.applies_to("b"));
+        assert!(DetectionRule { tags: vec![ALL_ACCOUNTS.into()], ..b }.applies_to("zzz"));
     }
 
     #[test]

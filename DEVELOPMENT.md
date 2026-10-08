@@ -52,6 +52,7 @@ dist/                — Settings, popup and about pages (HTML/CSS/JS, no build 
 src-tauri/src/
 ├── main.rs          — App setup, tray menu, IPC commands, popup, reconnect loop
 ├── config.rs        — JSON config, keyring storage, legacy migration
+├── rule_store.rs    — rules.json, account tags, migration from config.json
 ├── rules.rs         — Rule model and matching (sender, subject, code, link)
 ├── imap.rs          — IMAP IDLE loop, SSL/STARTTLS, two-stage fetch, MIME parsing, delete
 ├── api.rs           — Local HTTP API
@@ -79,7 +80,7 @@ src-tauri/src/
 | `code_pattern` | Regex for the code itself (default `[A-Za-z0-9-]{4,12}`) |
 | `link_prefix` | Link rules only: the first `http(s)://` URL starting with this (case-insensitive) is offered |
 
-A rule needs a sender or a subject. Rules are evaluated in order; the first match wins. The full config schema is in [INTERNAL.md](INTERNAL.md).
+A rule needs a sender or a subject. Each account checks the rules tagged with its tag or `*`, in order; the first match wins. The full config schema is in [INTERNAL.md](INTERNAL.md).
 
 ## Local HTTP API
 

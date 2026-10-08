@@ -8,7 +8,7 @@ This document describes every file and system artifact that OTP-Scout creates or
 
 > Early development versions used `~/.config/authscout/config.json`; it is copied to the new location on first start if no new config exists yet.
 
-**Purpose**: Persistent configuration for all IMAP accounts and their detection rules.
+**Purpose**: Persistent configuration for all IMAP accounts and the API. Detection rules live in [`rules.json`](#2-configotp-scoutrulesjson).
 
 **Created by**: OTP-Scout on first account save.
 
@@ -43,52 +43,9 @@ This document describes every file and system artifact that OTP-Scout creates or
       // "*" matches any substring, case-insensitive.
       "sender_filter": ["*@example.com", "noreply@github.com"],
 
-      // Detection rules. Evaluated in order, first match wins.
-      // Empty array = use built-in default rule.
-      "rules": [
-        {
-          // Human-readable name for this rule
-          "label": "Default",
-
-          // "code" (extract a code) or "link" (offer a login link). Default "code".
-          "kind": "code",
-
-          // Optional comma-separated sender globs. "" = any sender.
-          "sender": "",
-
-          // Subject pattern. {code} marks the code, * matches any text,
-          // whitespace matches any whitespace, case-insensitive.
-          // Without {code} the code is read from the body. "" = any subject.
-          "subject": "{code} is your verification code",
-
-          // Body pattern (only used if subject has no {code}). Must contain {code}.
-          // "" = first token in the body matching code_pattern.
-          "body": "",
-
-          // Regex describing what a code looks like.
-          "code_pattern": "[A-Za-z0-9-]{4,12}",
-
-          // Whether this rule is active
-          "enabled": true
-        },
-        {
-          "label": "GitHub sign-in",
-          "sender": "noreply@github.com",
-          "subject": "Your * sign-in code",
-          "body": "Verification code: {code}",
-          "code_pattern": "[0-9]{4,8}",
-          "enabled": true
-        },
-        {
-          // Link mode: the first body link starting with link_prefix is offered for opening.
-          "label": "Claude",
-          "kind": "link",
-          "sender": "*@mail.anthropic.com",
-          "subject": "Secure link to log in*",
-          "link_prefix": "https://claude.ai/magic-link",
-          "enabled": true
-        }
-      ]
+      // Assigns rules to this account (see rules.json). Derived from the
+      // label on creation, unchanged when the account is renamed.
+      "tag": "my-gmail"
     }
   ]
 }
@@ -122,7 +79,86 @@ The API token is stored in the keyring (service `otp-scout`, username `api-token
 | `accounts[].user` | string | yes | `""` | IMAP login username |
 | `accounts[].mailbox` | string | no | `"INBOX"` | Mailbox to monitor |
 | `accounts[].sender_filter` | string[] | no | `[]` | Glob patterns for sender whitelist |
-| `accounts[].rules` | Rule[] | no | `[]` | Detection rules (empty = default) |
+| `accounts[].tag` | string | no | auto | Unique tag assigning rules to this account |
+
+Versions up to 0.2.0 kept the rules in `accounts[].rules`. On first start they are moved to `rules.json`, each tagged with its account; identical rules are merged. The old file is kept as `config.json.bak`.
+
+---
+
+## 2. `~/.config/otp-scout/rules.json`
+
+**Purpose**: All detection rules, independent of accounts.
+
+**Created by**: OTP-Scout on first account save, or when migrating an older `config.json`. An unreadable file is renamed to `rules.json.broken`.
+
+### Schema
+
+```jsonc
+{
+  "version": 1,
+  "rules": [
+    {
+      // Stable identifier (UUID v4)
+      "id": "2f6c1e0a-8a52-4f0e-9d3b-6c1f0e2a7b11",
+
+      // Accounts checking this rule: account tags, or "*" for all accounts.
+      // Empty = no account (the rule is not checked).
+      "tags": ["my-gmail"],
+
+      // Optional: origin in the catalog
+      "catalog": { "app": "spotify", "lang": "de" },
+
+      // Human-readable name for this rule
+      "label": "Default",
+
+      // "code" (extract a code) or "link" (offer a login link). Default "code".
+      "kind": "code",
+
+      // Optional comma-separated sender globs. "" = any sender.
+      "sender": "",
+
+      // Subject pattern. {code} marks the code, * matches any text,
+      // whitespace matches any whitespace, case-insensitive.
+      // Without {code} the code is read from the body. "" = any subject.
+      "subject": "{code} is your verification code",
+
+      // Body pattern (only used if subject has no {code}). Must contain {code}.
+      // "" = first token in the body matching code_pattern.
+      "body": "",
+
+      // Regex describing what a code looks like.
+      "code_pattern": "[A-Za-z0-9-]{4,12}",
+
+      // Whether this rule is active
+      "enabled": true
+    },
+    {
+      // Link mode: the first body link starting with link_prefix is offered for opening.
+      "id": "9a0d4c55-1f3e-4b7a-8c2d-5e6f7a8b9c0d",
+      "tags": ["*"],
+      "label": "Claude",
+      "kind": "link",
+      "sender": "*@mail.anthropic.com",
+      "subject": "Secure link to log in*",
+      "link_prefix": "https://claude.ai/magic-link",
+      "enabled": true
+    }
+  ]
+}
+```
+
+An account that checks no rule uses the built-in default rule.
+
+The account dialog still edits the rules of one account: changing a shared rule changes it for all its accounts, removing it there only detaches it from this account. A deleted account's tag is removed from all rules; rules left without tags stay in the file.
+
+### Field Reference
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `version` | u32 | yes | `1` | File format version |
+| `rules[].id` | string (UUID) | yes | auto | Stable rule identifier |
+| `rules[].tags` | string[] | no | `[]` | Account tags or `*` |
+| `rules[].catalog` | object | no | – | `{ "app", "lang" }` of the catalog entry |
 | `rules[].label` | string | no | `""` | Rule name |
 | `rules[].sender` | string | no | `""` | Comma-separated sender globs |
 | `rules[].subject` | string | * | `""` | Subject pattern with optional `{code}` |
@@ -150,7 +186,7 @@ Matching is case-insensitive.
 New emails are all emails with a UID above the last one handled, read or not; on connect the newest existing email marks the start. For each new email only the header is fetched first, then:
 
 1. **Account sender filter**: if `sender_filter` is non-empty and `From` matches none of its globs, the email is skipped.
-2. Rules are evaluated in order; the first rule that yields a code wins. Per rule:
+2. The rules carrying the account's tag or `*` are evaluated in order; the first rule that yields a code wins. Per rule:
    - `sender` (if set) must match `From`, and `subject` (if set) must match the subject.
    - If `subject` contains `{code}`, the code is taken from the subject.
    - Otherwise the body is fetched (`BODY.PEEK[]`, at most once per email, mail stays unread) and decoded with `mail-parser` (multipart, quoted-printable, base64, charsets).
@@ -159,7 +195,7 @@ New emails are all emails with a UID above the last one handled, read or not; on
 
 ---
 
-## 2. System Keyring
+## 3. System Keyring
 
 **Purpose**: Secure storage of IMAP passwords and the API token.
 
@@ -195,7 +231,7 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 ---
 
-## 3. `$XDG_RUNTIME_DIR/tray-icon/` (or `/tmp/tray-icon/`)
+## 4. `$XDG_RUNTIME_DIR/tray-icon/` (or `/tmp/tray-icon/`)
 
 **Purpose**: Temporary PNG files for the system tray icon.
 
@@ -209,7 +245,7 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 ---
 
-## 4. Files NOT Created (v0.1.0)
+## 5. Files NOT Created (v0.1.0)
 
 The following are explicitly **not** created by OTP-Scout in the current version:
 
@@ -225,6 +261,7 @@ The following are explicitly **not** created by OTP-Scout in the current version
 
 | Path | Type | Contains |
 |------|------|----------|
-| `~/.config/otp-scout/config.json` | JSON | Accounts, rules, sender filters |
+| `~/.config/otp-scout/config.json` | JSON | Accounts, sender filters, API settings |
+| `~/.config/otp-scout/rules.json` | JSON | Detection rules and their account tags |
 | System keyring (`otp-scout`) | Encrypted | IMAP passwords (one per account ID), API token |
 | `$XDG_RUNTIME_DIR/tray-icon/` | PNG files | Temporary tray icons (auto-managed) |

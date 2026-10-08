@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::rules::DetectionRule;
+use crate::rule_store;
+use crate::rules::{default_rules, CompiledRules, DetectionRule};
 
 const KEYRING_SERVICE: &str = "otp-scout";
 const CONFIG_DIR: &str = "otp-scout";
@@ -12,6 +13,7 @@ const CONFIG_DIR: &str = "otp-scout";
 const LEGACY_KEYRING_SERVICE: &str = "authscout";
 const LEGACY_CONFIG_DIR: &str = "authscout";
 const CONFIG_FILE: &str = "config.json";
+const RULES_FILE: &str = "rules.json";
 
 /// How the IMAP connection is encrypted.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
@@ -40,7 +42,12 @@ pub struct AccountConfig {
     #[serde(default, skip_serializing)]
     pub pass: String,
     pub mailbox: String,
+    /// Fixed on creation, kept on rename; assigns rules to this account.
     #[serde(default)]
+    pub tag: String,
+    /// Rules checked by this account. Filled from `rules.json` for the UI and
+    /// the IMAP loop, never written to config.json (only read for migration).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<DetectionRule>,
     #[serde(default)]
     pub sender_filter: Vec<String>,
@@ -58,6 +65,7 @@ impl Default for AccountConfig {
             user: String::new(),
             pass: String::new(),
             mailbox: "INBOX".to_string(),
+            tag: String::new(),
             rules: vec![],
             sender_filter: vec![],
         }
@@ -69,6 +77,9 @@ pub struct AppConfig {
     pub accounts: Vec<AccountConfig>,
     #[serde(default)]
     pub api: ApiConfig,
+    /// Contents of `rules.json`.
+    #[serde(skip)]
+    pub rules: Vec<DetectionRule>,
 }
 
 pub const DEFAULT_API_PORT: u16 = 6870;
@@ -115,14 +126,36 @@ fn config_path() -> Result<std::path::PathBuf> {
     Ok(path)
 }
 
+/// Loads config.json and rules.json; moves rules out of config.json first if
+/// needed (old config kept as config.json.bak).
 pub fn load_config() -> Result<AppConfig> {
     let path = config_path()?;
-    if path.exists() {
+    let mut config: AppConfig = if path.exists() {
         let data = std::fs::read_to_string(&path)?;
-        Ok(serde_json::from_str(&data).unwrap_or_default())
+        serde_json::from_str(&data).unwrap_or_default()
     } else {
-        Ok(AppConfig::default())
+        AppConfig::default()
+    };
+
+    let rules_path = config_dir()?.join(RULES_FILE);
+    if rules_path.exists() {
+        config.rules = rule_store::load(&rules_path).or_else(|e| {
+            // Keep the file for repair instead of overwriting it on the next save.
+            let broken = rules_path.with_extension("json.broken");
+            std::fs::rename(&rules_path, &broken)?;
+            tracing::error!("{e:#} – moved to {}, starting without rules", broken.display());
+            anyhow::Ok(vec![])
+        })?;
     }
+
+    if rule_store::needs_migration(&config.accounts) {
+        std::fs::copy(&path, path.with_extension("json.bak")).context("Failed to back up config.json")?;
+        rule_store::migrate(&mut config.accounts, &mut config.rules);
+        save_rules(&config)?;
+        save_config(&config)?;
+        tracing::info!("Moved rules to {} ({} rules)", rules_path.display(), config.rules.len());
+    }
+    Ok(config)
 }
 
 fn save_config(config: &AppConfig) -> Result<()> {
@@ -130,6 +163,28 @@ fn save_config(config: &AppConfig) -> Result<()> {
     let data = serde_json::to_string_pretty(config)?;
     std::fs::write(&path, data)?;
     Ok(())
+}
+
+fn save_rules(config: &AppConfig) -> Result<()> {
+    rule_store::save(&config_dir()?.join(RULES_FILE), &config.rules)
+}
+
+/// Accounts with the rules each one checks.
+fn accounts_with_rules(config: &AppConfig) -> Vec<AccountConfig> {
+    config
+        .accounts
+        .iter()
+        .map(|a| AccountConfig { rules: rule_store::rules_for(&config.rules, &a.tag), ..a.clone() })
+        .collect()
+}
+
+/// Stores the rules edited in the account dialog; no rules = default rules.
+fn apply_account_rules(config: &mut AppConfig, tag: &str, mut edited: Vec<DetectionRule>) {
+    if edited.is_empty() {
+        edited = default_rules();
+    }
+    let others: Vec<String> = config.accounts.iter().map(|a| a.tag.clone()).filter(|t| t != tag).collect();
+    rule_store::replace_for_account(&mut config.rules, tag, &others, edited);
 }
 
 fn keyring_entry(account_id: &str) -> Result<Entry> {
@@ -169,23 +224,26 @@ pub fn add_account(config: &SharedConfig, mut account: AccountConfig) -> Result<
     if password.is_empty() {
         anyhow::bail!("Password is required");
     }
-    crate::rules::CompiledRules::compile(&account.rules)?;
+    let edited = std::mem::take(&mut account.rules);
+    CompiledRules::compile(&edited)?;
     let mut cfg = config.blocking_lock();
     store_password(&account.id, &password)?;
-    if account.rules.is_empty() {
-        account.rules = crate::rules::default_rules();
-    }
+    account.tag = rule_store::unique_tag(&account.label, cfg.accounts.iter().map(|a| a.tag.as_str()));
+    let tag = account.tag.clone();
     cfg.accounts.push(account);
+    apply_account_rules(&mut cfg, &tag, edited);
+    save_rules(&cfg)?;
     save_config(&cfg)?;
-    Ok(cfg.accounts.clone())
+    Ok(accounts_with_rules(&cfg))
 }
 
 pub fn update_account(
     config: &SharedConfig,
     mut account: AccountConfig,
 ) -> Result<Vec<AccountConfig>> {
-    crate::rules::CompiledRules::compile(&account.rules)?;
+    CompiledRules::compile(&account.rules)?;
     let mut cfg = config.blocking_lock();
+    let mut tag = None;
     if let Some(existing) = cfg.accounts.iter_mut().find(|a| a.id == account.id) {
         if !account.pass.is_empty() {
             store_password(&account.id, &account.pass)?;
@@ -197,22 +255,27 @@ pub fn update_account(
         existing.allow_invalid_certs = account.allow_invalid_certs;
         existing.user = std::mem::take(&mut account.user);
         existing.mailbox = std::mem::take(&mut account.mailbox);
-        existing.rules = std::mem::take(&mut account.rules);
         existing.sender_filter = std::mem::take(&mut account.sender_filter);
-        if existing.rules.is_empty() {
-            existing.rules = crate::rules::default_rules();
-        }
+        tag = Some(existing.tag.clone());
+    }
+    if let Some(tag) = tag {
+        apply_account_rules(&mut cfg, &tag, account.rules);
+        save_rules(&cfg)?;
     }
     save_config(&cfg)?;
-    Ok(cfg.accounts.clone())
+    Ok(accounts_with_rules(&cfg))
 }
 
 pub fn remove_account(config: &SharedConfig, id: &str) -> Result<Vec<AccountConfig>> {
     let mut cfg = config.blocking_lock();
+    if let Some(tag) = cfg.accounts.iter().find(|a| a.id == id).map(|a| a.tag.clone()) {
+        rule_store::remove_tag(&mut cfg.rules, &tag);
+        save_rules(&cfg)?;
+    }
     cfg.accounts.retain(|a| a.id != id);
     let _ = delete_password(id);
     save_config(&cfg)?;
-    Ok(cfg.accounts.clone())
+    Ok(accounts_with_rules(&cfg))
 }
 
 pub fn get_api_config(config: &SharedConfig) -> ApiConfig {
@@ -257,15 +320,14 @@ pub fn regenerate_api_token() -> Result<String> {
 }
 
 pub fn get_accounts(config: &SharedConfig) -> Vec<AccountConfig> {
-    let cfg = config.blocking_lock();
-    cfg.accounts.clone()
+    accounts_with_rules(&config.blocking_lock())
 }
 
-/// Load all accounts from config, injecting passwords from keyring.
+/// Load all accounts with their rules, injecting passwords from keyring.
 pub fn load_accounts_with_passwords() -> Result<Vec<AccountConfig>> {
-    let mut config = load_config()?;
-    for account in &mut config.accounts {
+    let mut accounts = accounts_with_rules(&load_config()?);
+    for account in &mut accounts {
         account.pass = load_password(&account.id).unwrap_or_default();
     }
-    Ok(config.accounts)
+    Ok(accounts)
 }

@@ -324,7 +324,7 @@ function renderList(accounts) {
     return
   }
   el.innerHTML = accounts.map(a => {
-    const rules = (a.rules||[]).map(r => `<span class="chip">${r.kind === 'link' ? '🔗' : '🔢'} ${esc(r.label)}${r.enabled ? '' : ' (off)'} · <code>${esc(r.kind === 'link' ? r.link_prefix : (r.subject || r.sender))}</code></span>`).join('') || '<span class="dim">(default rules)</span>'
+    const rules = (a.rules||[]).map(r => `<span class="chip">${r.kind === 'link' ? '🔗' : '🔢'} ${esc(r.label)}${r.enabled ? '' : ' (off)'}${(r.tags||[]).some(t => t === '*' || t !== a.tag) ? ' (shared)' : ''} · <code>${esc(r.kind === 'link' ? r.link_prefix : (r.subject || r.sender))}</code></span>`).join('') || '<span class="dim">(default rules)</span>'
     const filter = (a.sender_filter||[]).length ? esc(a.sender_filter.join(', ')) : '<span class="dim">all senders</span>'
     return `
     <div class="account-card">
@@ -340,6 +340,7 @@ function renderList(accounts) {
         <dt>Server</dt><dd>${esc(a.server)}:${a.port} <span class="dim">· ${a.security === 'starttls' ? 'STARTTLS' : 'SSL/TLS'}${a.allow_invalid_certs ? ', self-signed OK' : ''}</span></dd>
         <dt>User</dt><dd>${esc(a.user)}</dd>
         <dt>Mailbox</dt><dd>${esc(a.mailbox)}</dd>
+        <dt>Tag</dt><dd><code>${esc(a.tag)}</code></dd>
         <dt>Sender</dt><dd>${filter}</dd>
         <dt>Rules</dt><dd>${rules}</dd>
       </div>
@@ -589,7 +590,7 @@ function addCatalogApp(catId, appId) {
   const app = catalog.categories.find(c => c.id === catId).apps.find(a => a.id === appId)
   const langName = catalog.languages.find(l => l.id === lang).name
   for (const r of app.variants[lang]) {
-    if (!editingRules.some(e => sameRule(e, r))) editingRules.push({ ...r, label: `${app.name} (${langName})`, enabled: true })
+    if (!editingRules.some(e => sameRule(e, r))) editingRules.push({ ...r, label: `${app.name} (${langName})`, enabled: true, catalog: { app: app.id, lang } })
   }
   renderRules()
   renderCatalog()
@@ -702,7 +703,7 @@ function ruleCard(r, i) {
 }
 
 function cleanRule(r) {
-  return { label: r.label || 'Rule', kind: r.kind || 'code', sender: r.sender || '', subject: r.subject || '',
+  return { id: r.id || '', tags: r.tags || [], catalog: r.catalog || null, label: r.label || 'Rule', kind: r.kind || 'code', sender: r.sender || '', subject: r.subject || '',
            body: r.body || '', code_pattern: r.code_pattern || '', link_prefix: r.link_prefix || '', enabled: !!r.enabled }
 }
 
