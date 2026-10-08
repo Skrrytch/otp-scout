@@ -220,6 +220,7 @@ fn pattern_to_regex(pattern: &str, code_pattern: &str) -> Result<Regex> {
 }
 
 pub struct CompiledRule {
+    pub id: String,
     pub label: String,
     pub kind: RuleKind,
     senders: Vec<String>,
@@ -255,6 +256,8 @@ pub struct StageResult {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct MatchTrace {
     pub rule: String,
+    /// Id of the rule in `rules.json`; empty for unsaved rules.
+    pub rule_id: String,
     pub stages: Vec<StageResult>,
     /// The code or link found.
     pub value: Option<String>,
@@ -336,6 +339,7 @@ impl CompiledRule {
         };
 
         Ok(Self {
+            id: rule.id.clone(),
             label,
             kind: rule.kind,
             senders,
@@ -366,7 +370,7 @@ impl CompiledRule {
     /// Checks the mail like `match_headers` + `match_body` and records each stage.
     /// `body` is `None` if it was not loaded; the trace then stops before it.
     pub fn trace(&self, from: &str, subject: &str, body: Option<&MailBody>) -> MatchTrace {
-        let mut trace = MatchTrace { rule: self.label.clone(), stages: vec![], value: None };
+        let mut trace = MatchTrace { rule: self.label.clone(), rule_id: self.id.clone(), stages: vec![], value: None };
         let mut stage = |stage, ok, detail: String| trace.stages.push(StageResult { stage, ok, detail });
 
         let senders = self.senders.join(", ");

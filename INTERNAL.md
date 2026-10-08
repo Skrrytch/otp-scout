@@ -249,7 +249,7 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 The following are explicitly **not** created by OTP-Scout in the current version:
 
-- **No log files** — logging goes to stdout/stderr only
+- **No log files** — logging goes to stdout/stderr only; the Log tab keeps the last 500 entries in memory
 - **No code history** — detected codes are not persisted to disk
 - **No cache directory** — no `~/.cache/otp-scout/`
 - **No autostart entry** — no `~/.config/autostart/otp-scout.desktop`

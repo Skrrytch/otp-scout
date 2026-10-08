@@ -12,7 +12,8 @@ use tokio::sync::{mpsc::Sender, Notify};
 use tokio_native_tls::TlsConnector as TokioTlsConnector;
 
 use crate::config::{AccountConfig, Security};
-use crate::rules::{self, CompiledRules, HeaderMatch, MailBody, RuleKind};
+use crate::log;
+use crate::rules::{self, CompiledRules, HeaderMatch, MailBody, RuleKind, Stage};
 use crate::status;
 
 /// Re-issue IDLE this often. Short enough to notice silently dropped
@@ -127,6 +128,7 @@ pub async fn run_idle_loop(
     };
 
     status::set(&app, &account.id, "connecting", format!("Connecting to {}…", account.server));
+    log::event(&app, &account.id, &account.label, "info", format!("Connecting to {}:{}", account.server, account.port));
 
     let mut session = connect(&account).await?;
 
@@ -152,6 +154,7 @@ pub async fn run_idle_loop(
     );
 
     status::set(&app, &account.id, "ok", format!("Connected – watching {}", account.mailbox));
+    log::event(&app, &account.id, &account.label, "info", format!("Connected – watching {}", account.mailbox));
 
 
     loop {
@@ -172,14 +175,20 @@ pub async fn run_idle_loop(
                 }
             }
         };
+        let woken = !matches!(response, IdleResponse::Timeout);
         match response {
             IdleResponse::NewData(_) => {
-                tracing::debug!("[{}] IDLE woke up after {:.1?}", account.label, idle_started.elapsed())
+                tracing::debug!("[{}] IDLE woke up after {:.1?}", account.label, idle_started.elapsed());
+                log::event(&app, &account.id, &account.label, "info", "Server reported new data (IDLE)");
             }
             IdleResponse::Timeout => tracing::debug!("[{}] IDLE timeout – re-issuing", account.label),
-            IdleResponse::ManualInterrupt => tracing::info!("[{}] Manual check", account.label),
+            IdleResponse::ManualInterrupt => {
+                tracing::info!("[{}] Manual check", account.label);
+                log::event(&app, &account.id, &account.label, "info", "Manual check");
+            }
         }
 
+        let check_started = Instant::now();
         session = tokio::time::timeout(COMMAND_TIMEOUT, handle.done())
             .await
             .context("Server did not respond – connection lost")?
@@ -187,7 +196,6 @@ pub async fn run_idle_loop(
 
         // All mails newer than the last one seen, read or not: another client
         // may already have marked a code mail as read.
-        let check_started = Instant::now();
         let seen = last_uid.load(Ordering::Relaxed);
         let mut uids: Vec<u32> = tokio::time::timeout(COMMAND_TIMEOUT, session.uid_search(format!("UID {}:*", seen + 1)))
             .await
@@ -199,6 +207,10 @@ pub async fn run_idle_loop(
             .collect();
         uids.sort_unstable();
         status::set(&app, &account.id, "ok", format!("Mailbox checked – {} new", uids.len()));
+        if woken {
+            let message = format!("Mailbox checked – {} new after {} ms", uids.len(), check_started.elapsed().as_millis());
+            log::event(&app, &account.id, &account.label, "info", message);
+        }
 
         for uid in uids {
             let header_fetches: Vec<_> = session
@@ -219,8 +231,23 @@ pub async fn run_idle_loop(
                     subject
                 );
 
+                let ms = |t: Instant| t.elapsed().as_millis() as u64;
+                let mut entry = log::MailEntry {
+                    uid,
+                    from: from.clone(),
+                    subject: subject.clone(),
+                    outcome: log::Outcome::NoMatch,
+                    kind: None,
+                    value: None,
+                    traces: vec![],
+                    timings: log::Timings { headers: ms(check_started), ..Default::default() },
+                };
+
                 if !rules::sender_matches(&account.sender_filter, from.as_deref().unwrap_or("")) {
                     tracing::debug!("[{}] Skipping mail from {:?} – sender filter", account.label, from);
+                    entry.outcome = log::Outcome::Filtered;
+                    entry.timings.done = ms(check_started);
+                    log::mail(&app, &account.id, &account.label, entry);
                     continue;
                 }
 
@@ -230,23 +257,21 @@ pub async fn run_idle_loop(
                 let mut body: Option<MailBody> = None;
 
                 for rule in &rules.rules {
-                    let code = match rule.match_headers(from_str, subject_str) {
-                        None => continue,
-                        Some(HeaderMatch::Code(code)) => Some(code),
-                        Some(HeaderMatch::NeedsBody) => {
-                            if body.is_none() {
-                                let body_fetches: Vec<_> = session
-                                    .uid_fetch(uid.to_string(), "BODY.PEEK[]")
-                                    .await?
-                                    .try_collect()
-                                    .await?;
-                                let raw = body_fetches.first().and_then(|f| f.body()).unwrap_or(&[]);
-                                body = Some(parse_body(raw));
-                                tracing::debug!("[{}] UID {uid}: body after {:.1?}", account.label, check_started.elapsed());
-                            }
-                            rule.match_body(body.as_ref().unwrap())
-                        }
-                    };
+                    if body.is_none() && rule.match_headers(from_str, subject_str) == Some(HeaderMatch::NeedsBody) {
+                        let body_fetches: Vec<_> = session
+                            .uid_fetch(uid.to_string(), "BODY.PEEK[]")
+                            .await?
+                            .try_collect()
+                            .await?;
+                        let raw = body_fetches.first().and_then(|f| f.body()).unwrap_or(&[]);
+                        body = Some(parse_body(raw));
+                        entry.timings.body = Some(ms(check_started));
+                        tracing::debug!("[{}] UID {uid}: body after {:.1?}", account.label, check_started.elapsed());
+                    }
+                    let trace = rule.trace(from_str, subject_str, body.as_ref());
+                    let code = trace.value.clone();
+                    let headers_ok = trace.stages.iter().any(|s| s.stage == Stage::Subject && s.ok);
+                    entry.traces.push(trace);
                     if let Some(code) = code {
                         let payload = build_payload(&code, rule.kind, &rule.label, &account, uid, &from, &subject);
                         tracing::info!(
@@ -256,9 +281,17 @@ pub async fn run_idle_loop(
                             check_started.elapsed()
                         );
                         let _ = tx.send(payload).await;
+                        entry.outcome = log::Outcome::Found;
+                        entry.kind = Some(rule.kind);
+                        entry.value = Some(code);
                         break;
                     }
+                    if headers_ok {
+                        entry.outcome = log::Outcome::Partial;
+                    }
                 }
+                entry.timings.done = ms(check_started);
+                log::mail(&app, &account.id, &account.label, entry);
             }
 
             last_uid.store(uid, Ordering::Relaxed);

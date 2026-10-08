@@ -17,6 +17,7 @@ mod catalog;
 mod config;
 mod html;
 mod imap;
+mod log;
 mod rule_store;
 mod rules;
 mod status;
@@ -119,6 +120,16 @@ fn regenerate_api_token(server: State<api::ApiServer>) -> Result<String, String>
 }
 
 #[tauri::command]
+fn get_log(buffer: State<log::LogBuffer>) -> Vec<log::LogEntry> {
+    buffer.all()
+}
+
+#[tauri::command]
+fn clear_log(buffer: State<log::LogBuffer>) {
+    buffer.clear();
+}
+
+#[tauri::command]
 fn get_status(store: State<status::StatusStore>) -> Vec<status::ConnStatus> {
     store.all()
 }
@@ -174,10 +185,12 @@ async fn spawn_imap_tasks(
     for account in accounts {
         if account.server.is_empty() || account.user.is_empty() {
             status::set(&app, &account.id, "error", "Server or username missing");
+            log::event(&app, &account.id, &account.label, "error", "Server or username missing");
             continue;
         }
         if account.pass.is_empty() {
             status::set(&app, &account.id, "error", "No password stored – edit the account and enter it");
+            log::event(&app, &account.id, &account.label, "error", "No password stored");
             continue;
         }
         let tx = tx.clone();
@@ -231,6 +244,7 @@ async fn run_with_reconnect(
         }
         failures += 1;
         tracing::error!("[{label}] IMAP task failed (attempt {failures}): {e:#}");
+        log::event(&app, &account.id, &label, "error", format!("{e:#} – retry {failures} in {}s", delay.as_secs()));
         if failures == 1 {
             let _ = app
                 .notification()
@@ -247,7 +261,10 @@ async fn run_with_reconnect(
         );
         tokio::select! {
             _ = tokio::time::sleep(delay) => {}
-            _ = check.notified() => tracing::info!("[{label}] Manual check – reconnecting now"),
+            _ = check.notified() => {
+                tracing::info!("[{label}] Manual check – reconnecting now");
+                log::event(&app, &account.id, &label, "info", "Manual check – reconnecting now");
+            }
         }
         delay = (delay * 2).min(RETRY_MAX);
     }
@@ -372,6 +389,7 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(app_state)
         .manage(status::StatusStore::default())
+        .manage(log::LogBuffer::default())
         .manage(LastCode::default())
         .manage(api::ApiServer::default())
         .invoke_handler(tauri::generate_handler![
@@ -382,6 +400,8 @@ fn main() {
             restart_imap,
             get_default_rules,
             get_status,
+            get_log,
+            clear_log,
             test_rule,
             check_now,
             get_app_info,

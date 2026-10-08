@@ -96,6 +96,7 @@ Optionally, OTP-Scout can receive codes and links from browser scripts (e.g. Tam
 - **Connection problems** are shown on the account card and as a desktop notification; OTP-Scout reconnects automatically.
 - **Several codes at once** are stacked in the popup; each one disappears after two minutes.
 - **Your emails stay unread.** OTP-Scout only reads what it needs and doesn't mark anything as read.
+- **Why wasn't a code detected?** The *Log* tab in the settings lists every checked mail and, per rule, whether sender, subject and body matched. From there you can jump to the rule or create a new one from the mail. The log stays in memory only.
 - **Debug output:** start with `RUST_LOG=otp_scout=debug otp-scout` to see when the server reported a mail and how long headers and body took.
 - **Uninstall:** `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
 

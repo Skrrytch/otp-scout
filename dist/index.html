@@ -117,6 +117,35 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
 .unverified-badge { font-size:11px; padding:1px 7px; border-radius:9px; border:1px solid #f59e0b; color:#b45309; white-space:nowrap; }
 @media (prefers-color-scheme: dark) { .unverified-badge { color:#fbbf24; } }
 .btn-add { width:26px; height:26px; padding:0; border-radius:50%; font-size:16px; line-height:1; }
+.log-bar { display:grid; grid-template-columns:150px 130px 1fr auto auto; gap:8px; margin-bottom:12px; }
+.log-list { background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
+.log-row { display:grid; grid-template-columns:62px 18px 1fr; gap:4px 8px; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; cursor:pointer; }
+.log-row:last-child { border-bottom:none; }
+.log-row:hover { background:var(--surface-2); }
+.log-row.open { background:var(--accent-soft); }
+.log-row .time { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; padding-top:1px; }
+.log-row .sym.found { color:var(--ok); }
+.log-row .sym.partial { color:#d97706; }
+.log-row .sym.no_match, .log-row .sym.filtered { color:var(--muted); }
+.log-row .sym.error { color:var(--danger); }
+.log-row .main { min-width:0; }
+.log-row .line { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.log-row .result { color:var(--muted); font-size:12.5px; }
+.log-row .acc { font-size:11px; padding:0 6px; border-radius:9px; background:var(--surface-2); color:var(--muted); margin-right:6px; }
+.log-row.event { cursor:default; padding:5px 12px; }
+.log-row.event.error .main { color:var(--danger); }
+.masked { font-family:ui-monospace,"JetBrains Mono",monospace; cursor:pointer; border-bottom:1px dotted var(--muted); color:var(--text); }
+.log-detail { grid-column:2 / -1; cursor:default; margin-top:6px; padding:10px 12px; border-radius:8px; background:var(--surface); border:1px solid var(--border); }
+.trace { margin-bottom:8px; font-size:12.5px; }
+.trace .name { font-weight:600; margin-bottom:2px; }
+.trace .stage { display:grid; grid-template-columns:18px 64px 1fr; color:var(--muted); }
+.trace .stage.ok > :first-child { color:var(--ok); }
+.trace .stage.fail { color:var(--text); }
+.trace .stage.fail > :first-child { color:var(--danger); }
+.trace-more { font-size:12px; color:var(--muted); margin-bottom:8px; }
+.log-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.log-paused { font-size:12px; color:#b45309; text-align:center; padding:6px; background:var(--surface-2); }
+.rule-card.flash { outline:2px solid var(--accent); }
 #toast { display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; border-radius:8px; font-size:13px; z-index:20; color:#fff; box-shadow:var(--shadow); max-width:80vw; }
 #toast.success { background:var(--ok); }
 #toast.error { background:var(--danger); }
@@ -136,6 +165,7 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
 <nav class="tabs main-tabs">
   <button data-main="accounts" class="on" onclick="showMainTab('accounts')">Accounts</button>
   <button data-main="api" onclick="showMainTab('api')">API <span class="api-dot" id="api-dot"></span></button>
+  <button data-main="log" onclick="showMainTab('log')">Log</button>
 </nav>
 
 <section class="main-panel on" data-main="accounts">
@@ -185,6 +215,18 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
     <div class="head" style="margin-top:14px"><h3>Tampermonkey example</h3><button class="btn-sm" onclick="copyText(document.getElementById('api-example').textContent, 'Example copied')">Copy</button></div>
     <pre id="api-example" class="example"></pre>
   </div>
+</section>
+
+<section class="main-panel" data-main="log">
+  <div class="log-bar">
+    <select id="log-account" onchange="renderLog()"><option value="">All accounts</option></select>
+    <select id="log-view" onchange="renderLog()"><option value="mail">Mails</option><option value="event">Technical</option></select>
+    <input id="log-filter" placeholder="🔍 Filter sender, subject, rule…" oninput="renderLog()">
+    <button class="btn-sm" id="log-pause" onclick="toggleLogPause()" title="Pause live updates">⏸</button>
+    <button class="btn-sm" onclick="clearLog()" title="Clear log">Clear</button>
+  </div>
+  <div class="log-list" id="log-list"></div>
+  <p class="hint" style="margin-top:8px">Kept in memory only (last 500 entries), never written to disk. Mail text is not stored; codes are masked – click to reveal. Links are cut after their path.</p>
 </section>
 
 <div id="form-overlay" class="form-overlay" onclick="if(event.target===this)hideForm()">
@@ -355,6 +397,175 @@ function showMainTab(name) {
   document.querySelectorAll('.main-tabs button, .main-panel').forEach(el => el.classList.toggle('on', el.dataset.main === name))
   document.querySelector('.btn-bar').style.visibility = name === 'accounts' ? 'visible' : 'hidden'
   if (name === 'api') loadApi()
+  if (name === 'log') loadLog()
+}
+
+// ---- Log tab ----
+let logEntries = [], logPaused = false, logPending = [], logOpen = null
+const revealed = new Set()
+const SYM = { found:'✓', partial:'⚠', no_match:'✗', filtered:'⊘' }
+
+async function loadLog() {
+  try {
+    const [entries, accounts] = await Promise.all([invoke('get_log'), invoke('get_accounts')])
+    logEntries = entries.reverse()
+    const sel = document.getElementById('log-account'), cur = sel.value
+    sel.innerHTML = '<option value="">All accounts</option>' + accounts.map(a => `<option value="${esc(a.id)}">${esc(a.label)}</option>`).join('')
+    sel.value = cur
+    renderLog()
+  } catch(e) { showToast('Failed to load log: ' + e, 'error') }
+}
+
+function onLogEntry(entry) {
+  if (logPaused) { logPending.unshift(entry); renderLogPaused(); return }
+  logEntries.unshift(entry)
+  if (logEntries.length > 500) logEntries.pop()
+  if (document.querySelector('.main-panel.on')?.dataset.main === 'log') renderLog()
+}
+
+function toggleLogPause() {
+  logPaused = !logPaused
+  document.getElementById('log-pause').textContent = logPaused ? '▶' : '⏸'
+  if (!logPaused) { logEntries = [...logPending, ...logEntries].slice(0, 500); logPending = [] }
+  renderLog()
+}
+
+async function clearLog() {
+  await invoke('clear_log')
+  logEntries = []; logPending = []; logOpen = null
+  renderLog()
+}
+
+const maskCode = c => c.length <= 3 ? '•••' : c[0] + '•••' + c.slice(-2)
+const fmtTime = ms => new Date(ms).toLocaleTimeString()
+
+function valueHtml(e) {
+  if (e.kind === 'link') return `Link <code class="mono">${esc(e.value)}</code>`
+  const shown = revealed.has(e.seq) ? e.value : maskCode(e.value)
+  return `Code <span class="masked" title="Click to reveal" onclick="event.stopPropagation();revealCode(${e.seq})">${esc(shown)}</span>`
+}
+
+function revealCode(seq) {
+  revealed.has(seq) ? revealed.delete(seq) : revealed.add(seq)
+  renderLog()
+}
+
+// The rule that decided the outcome: the match, or the last one that passed the headers.
+function decisive(e) {
+  if (e.outcome === 'found') return e.traces[e.traces.length - 1]
+  return [...e.traces].reverse().find(t => t.stages.some(s => s.stage === 'subject' && s.ok))
+}
+
+function resultText(e) {
+  const t = decisive(e)
+  switch (e.outcome) {
+    case 'found': return `→ ${valueHtml(e)} · rule „${esc(t.rule)}“`
+    case 'partial': {
+      const f = t.stages.find(s => !s.ok)
+      return `→ rule „${esc(t.rule)}“: headers match, ${f ? `${esc(STAGE_LABEL[f.stage])} ${esc(f.detail)}` : 'body not loaded'}`
+    }
+    case 'filtered': return '→ skipped by the account’s sender filter'
+    default: return e.traces.length ? '→ no rule matches' : '→ no active rules'
+  }
+}
+
+function logMatches(e, q) {
+  if (!q) return true
+  const hay = e.type === 'mail' ? [e.from, e.subject, e.account, ...e.traces.map(t => t.rule)] : [e.message, e.account]
+  return hay.some(v => (v || '').toLowerCase().includes(q))
+}
+
+function renderLogPaused() {
+  const el = document.getElementById('log-paused')
+  if (el) el.textContent = `Paused – ${logPending.length} new entr${logPending.length === 1 ? 'y' : 'ies'}`
+}
+
+function renderLog() {
+  const acc = document.getElementById('log-account').value
+  const view = document.getElementById('log-view').value
+  const q = document.getElementById('log-filter').value.trim().toLowerCase()
+  const rows = logEntries.filter(e => e.type === view && (!acc || e.account_id === acc) && logMatches(e, q))
+  const paused = logPaused ? '<div class="log-paused" id="log-paused"></div>' : ''
+  document.getElementById('log-list').innerHTML = paused + (rows.length
+    ? rows.map(e => e.type === 'mail' ? mailRow(e) : eventRow(e)).join('')
+    : `<div class="empty-rules" style="margin:12px">${view === 'mail' ? 'No mails checked yet.' : 'No connection events yet.'}</div>`)
+  renderLogPaused()
+}
+
+function eventRow(e) {
+  return `<div class="log-row event ${e.level}">
+    <span class="time">${fmtTime(e.timestamp)}</span><span class="sym ${e.level}">${e.level === 'error' ? '!' : '·'}</span>
+    <div class="main line"><span class="acc">${esc(e.account)}</span>${esc(e.message)}</div></div>`
+}
+
+function mailRow(e) {
+  const open = logOpen === e.seq
+  return `<div class="log-row ${open ? 'open' : ''}" onclick="logOpen = logOpen === ${e.seq} ? null : ${e.seq}; renderLog()">
+    <span class="time">${fmtTime(e.timestamp)}</span><span class="sym ${e.outcome}">${SYM[e.outcome]}</span>
+    <div class="main">
+      <div class="line"><span class="acc">${esc(e.account)}</span>${esc(e.from || '(no sender)')}</div>
+      <div class="line">„${esc(e.subject || '')}“</div>
+      <div class="line result">${resultText(e)}</div>
+    </div>
+    ${open ? mailDetail(e) : ''}
+  </div>`
+}
+
+function mailDetail(e) {
+  // Rules failing at the sender are noise unless nothing else was checked.
+  const relevant = e.traces.filter(t => t.stages.length > 1 || t.stages[0]?.ok)
+  const hidden = e.traces.length - relevant.length
+  const traces = relevant.map(t => `<div class="trace"><div class="name">${esc(t.rule)}</div>${t.stages.map(s =>
+    `<div class="stage ${s.ok ? 'ok' : 'fail'}"><span>${s.ok ? '✓' : '✗'}</span><span>${esc(STAGE_LABEL[s.stage])}</span><span>${esc(s.detail)}</span></div>`).join('')}</div>`).join('')
+  const t = e.timings
+  const rule = decisive(e)
+  return `<div class="log-detail" onclick="event.stopPropagation()">
+    ${traces || ''}
+    ${hidden ? `<div class="trace-more">${hidden} rule${hidden === 1 ? '' : 's'} with another sender not shown.</div>` : ''}
+    <div class="hint">After the server reported the mail: headers ${t.headers} ms${t.body != null ? ` · body ${t.body} ms` : ''} · done ${t.done} ms</div>
+    <div class="log-actions">
+      ${rule && rule.rule_id ? `<button class="btn-sm" onclick="editRuleFromLog('${esc(e.account_id)}','${esc(rule.rule_id)}')">Edit rule</button>` : ''}
+      <button class="btn-sm" onclick="newRuleFromLog(${e.seq})">New rule from this mail</button>
+      <button class="btn-sm" onclick="copyLogEntry(${e.seq})">Copy</button>
+    </div>
+  </div>`
+}
+
+async function editRuleFromLog(accountId, ruleId) {
+  await editAccount(accountId)
+  const i = editingRules.findIndex(r => r.id === ruleId)
+  if (i < 0) return showToast('Rule no longer exists.', 'error')
+  const kind = editingRules[i].kind || 'code'
+  showTab(kind)
+  const pos = editingRules.slice(0, i).filter(r => (r.kind || 'code') === kind).length
+  const card = document.querySelectorAll(`#rules-${kind} .rule-card`)[pos]
+  if (card) { card.scrollIntoView({ block:'center' }); card.classList.add('flash') }
+}
+
+async function newRuleFromLog(seq) {
+  const e = logEntries.find(x => x.seq === seq)
+  await editAccount(e.account_id)
+  const domain = (e.from || '').split('@')[1]
+  editingRules.push({ ...newRule('code'), label: domain || 'New rule', sender: domain ? `*@${domain}` : '',
+                      subject: e.subject || '', _tFrom: e.from || '', _tSubject: e.subject || '', _testOpen: true })
+  showTab('code')
+  renderRules()
+  const cards = document.querySelectorAll('#rules-code .rule-card')
+  cards[cards.length - 1]?.scrollIntoView({ block:'nearest' })
+  runTest(editingRules.length - 1)
+  showToast('Mark the code in the subject with {code}, or describe it in the body.', 'success')
+}
+
+function copyLogEntry(seq) {
+  const e = logEntries.find(x => x.seq === seq)
+  const value = e.value && (e.kind === 'link' ? e.value : maskCode(e.value))
+  const lines = [
+    `${new Date(e.timestamp).toISOString()} ${e.account} – ${e.outcome}${value ? ` (${value})` : ''}`,
+    `From: ${e.from || ''}`, `Subject: ${e.subject || ''}`,
+    ...e.traces.map(t => `Rule "${t.rule}": ` + t.stages.map(s => `${s.ok ? '✓' : '✗'} ${s.stage} ${s.detail}`).join('; ')),
+    `Timings: headers ${e.timings.headers} ms, body ${e.timings.body ?? '–'} ms, done ${e.timings.done} ms`,
+  ]
+  copyText(lines.join('\n'), 'Entry copied')
 }
 
 async function loadApi() {
@@ -707,7 +918,7 @@ function cleanRule(r) {
            body: r.body || '', code_pattern: r.code_pattern || '', link_prefix: r.link_prefix || '', enabled: !!r.enabled }
 }
 
-const STAGE_LABEL = { sender: 'Sender', subject: 'Subject', body: 'Body:', link: 'Body:' }
+const STAGE_LABEL = { sender: 'Sender', subject: 'Subject', body: 'Body', link: 'Body' }
 
 async function runTest(i) {
   const r = editingRules[i], el = document.getElementById('test-' + i)
@@ -786,6 +997,7 @@ async function setupListeners() {
   })
   await ev.listen('account-status', (event) => updateStatus(event.payload))
   await ev.listen('api-status', (event) => renderApiStatus(event.payload))
+  await ev.listen('log-entry', (event) => onLogEntry(event.payload))
 }
 setupListeners()
 invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {})

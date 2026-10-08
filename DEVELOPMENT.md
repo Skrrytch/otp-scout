@@ -57,6 +57,7 @@ src-tauri/src/
 ├── imap.rs          — IMAP IDLE loop, SSL/STARTTLS, two-stage fetch, MIME parsing, delete
 ├── api.rs           — Local HTTP API
 ├── status.rs        — Per-account connection status
+├── log.rs           — In-memory log of checked mails and connection events (Log tab)
 └── html.rs          — HTML-to-text conversion
 ```
 
