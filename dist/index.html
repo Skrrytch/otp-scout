@@ -451,16 +451,22 @@ function go(sec) {
 
 const currentSection = () => document.querySelector('.section.on')?.dataset.sec
 
+// Chips show the tag itself; the account name goes into the tooltip.
 function tagLabel(tag) {
-  if (tag === ALL) return 'All accounts'
-  return accountByTag(tag)?.label || tag
+  return tag === ALL ? 'All accounts' : tag
+}
+
+function tagTitle(tag) {
+  if (tag === ALL) return ''
+  const a = accountByTag(tag)
+  return a ? `Account: ${a.label || a.user || '(unnamed)'}` : 'No account has this tag'
 }
 
 function tagChips(tags) {
   if (!(tags || []).length) return '<span class="chip warn">⚠ no account – not checked</span>'
   return tags.map(t => {
     const known = t === ALL || accountByTag(t)
-    return `<span class="chip${known ? '' : ' warn'}" title="${known ? esc(t) : 'No account has this tag'}">${esc(tagLabel(t))}</span>`
+    return `<span class="chip${known ? '' : ' warn'}" title="${esc(tagTitle(t))}">${esc(tagLabel(t))}</span>`
   }).join('')
 }
 
@@ -754,7 +760,7 @@ function removeTag(tag) {
 
 function tagEditor() {
   const tags = editRule.tags || []
-  const chips = tags.map(t => `<span class="chip${t === ALL || accountByTag(t) ? '' : ' warn'}">${esc(tagLabel(t))}<button title="Remove" onclick="removeTag('${esc(t)}')">✕</button></span>`).join('')
+  const chips = tags.map(t => `<span class="chip${t === ALL || accountByTag(t) ? '' : ' warn'}" title="${esc(tagTitle(t))}">${esc(tagLabel(t))}<button title="Remove" onclick="removeTag('${esc(t)}')">✕</button></span>`).join('')
   const options = [
     ...(tags.includes(ALL) ? [] : [`<option value="${ALL}">All accounts</option>`]),
     ...accounts.filter(a => !tags.includes(a.tag)).map(a => `<option value="${esc(a.tag)}">${esc(a.label)} (${esc(a.tag)})</option>`),
