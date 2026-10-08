@@ -84,6 +84,8 @@ OTP-Scout works with the [Proton Mail Bridge](https://proton.me/mail/bridge). In
 - **Accept self-signed certificate** ✔
 - The username and the *bridge password* shown in the Bridge app
 
+**Expect a delay of up to about 40 seconds.** The Bridge polls Proton only every 20–40 seconds, so a code arrives in your local mailbox that much later. OTP-Scout shows it as soon as the Bridge reports it. If you need codes faster, have the login mails of those services forwarded to a mailbox with real IMAP push (most providers) and add that account instead.
+
 ## Codes from Your Browser
 
 Optionally, OTP-Scout can receive codes and links from browser scripts (e.g. Tampermonkey) and show them in the same popup. Turn it on in **Settings → API** — you'll find a ready-to-use script there. Details for script authors are in [DEVELOPMENT.md](DEVELOPMENT.md#local-http-api).
@@ -94,6 +96,7 @@ Optionally, OTP-Scout can receive codes and links from browser scripts (e.g. Tam
 - **Connection problems** are shown on the account card and as a desktop notification; OTP-Scout reconnects automatically.
 - **Several codes at once** are stacked in the popup; each one disappears after two minutes.
 - **Your emails stay unread.** OTP-Scout only reads what it needs and doesn't mark anything as read.
+- **Debug output:** start with `RUST_LOG=otp_scout=debug otp-scout` to see when the server reported a mail and how long headers and body took.
 - **Uninstall:** `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
 
 ## For Developers

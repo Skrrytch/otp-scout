@@ -5,7 +5,7 @@ Technical notes for building, packaging and extending OTP-Scout. For the user gu
 ## How It Works
 
 - One IMAP connection per account in **IDLE** mode ([RFC 2177](https://tools.ietf.org/html/rfc2177)): the server pushes new mail, nothing is polled. IDLE is re-issued every 5 minutes; commands time out after 30 s, so silently dropped connections are noticed. Failed connections reconnect with exponential backoff (5 s … 5 min).
-- On new mail only the **headers** of unseen messages are fetched (`BODY.PEEK[HEADER]`). Rules match sender and subject first; the full message (`BODY.PEEK[]`) is fetched only if a rule needs the body. Nothing is marked as read.
+- On new mail only the **headers** of messages newer than the last handled UID are fetched, read or not (`BODY.PEEK[HEADER]`). Rules match sender and subject first; the full message (`BODY.PEEK[]`) is fetched only if a rule needs the body. Nothing is marked as read.
 - Bodies are decoded with `mail-parser` (multipart, quoted-printable, base64, charsets). Code rules search the plain text, link rules the HTML `href`s and the text.
 - *… and destroy* deletes via a short second connection: the message is moved to the server's `\Trash` folder if there is one, otherwise flagged `\Deleted` and expunged.
 

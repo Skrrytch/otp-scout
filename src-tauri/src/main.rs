@@ -349,7 +349,13 @@ fn spawn_check(app: AppHandle) {
 }
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    // `RUST_LOG=otp_scout=debug` shows IDLE wake-ups and per-stage timings.
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
 
     let accounts = config::load_accounts_with_passwords().unwrap_or_default();
     let config = Arc::new(Mutex::new(config::load_config().unwrap_or_default()));

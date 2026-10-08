@@ -147,7 +147,7 @@ Matching is case-insensitive.
 
 ### Detection Rule Evaluation
 
-For each new email only the header is fetched first, then:
+New emails are all emails with a UID above the last one handled, read or not; on connect the newest existing email marks the start. For each new email only the header is fetched first, then:
 
 1. **Account sender filter**: if `sender_filter` is non-empty and `From` matches none of its globs, the email is skipped.
 2. Rules are evaluated in order; the first rule that yields a code wins. Per rule:
