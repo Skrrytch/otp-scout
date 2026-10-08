@@ -128,7 +128,7 @@ fn test_rule(
     from: String,
     subject: String,
     body: String,
-) -> Result<Option<String>, String> {
+) -> Result<rules::MatchTrace, String> {
     rules::test_rule(&rule, &from, &subject, &body).map_err(|e| format!("{e:#}"))
 }
 

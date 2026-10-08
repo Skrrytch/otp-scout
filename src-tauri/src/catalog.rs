@@ -140,7 +140,7 @@ mod tests {
         let catalog = local();
         for (app_id, lang, from, subject, expected) in cases {
             let app = catalog.categories.iter().flat_map(|c| &c.apps).find(|a| a.id == app_id).unwrap();
-            let code = test_rule(&app.variants[lang][0], from, subject, "").unwrap();
+            let code = test_rule(&app.variants[lang][0], from, subject, "").unwrap().value;
             assert_eq!(code.as_deref(), Some(expected), "{app_id}/{lang}");
         }
     }

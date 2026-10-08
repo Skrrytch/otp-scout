@@ -177,12 +177,41 @@ pub struct CompiledRule {
     pub label: String,
     pub kind: RuleKind,
     senders: Vec<String>,
+    subject_pat: String,
     subject: Option<Regex>,
     subject_has_code: bool,
+    body_pat: String,
     /// Code mode: extracts the code from the body text.
     body: Option<Regex>,
     /// Link mode: lowercase prefix the link must start with.
     link_prefix: String,
+}
+
+/// Stage of the rule check, in the order they run.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Stage {
+    Sender,
+    Subject,
+    Body,
+    Link,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct StageResult {
+    pub stage: Stage,
+    pub ok: bool,
+    pub detail: String,
+}
+
+/// Why a rule did or did not match a mail, stage by stage. Ends at the first
+/// failed stage, or before the body stage if no body was given.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct MatchTrace {
+    pub rule: String,
+    pub stages: Vec<StageResult>,
+    /// The code or link found.
+    pub value: Option<String>,
 }
 
 /// Result of matching the headers of a mail against a rule.
@@ -260,7 +289,17 @@ impl CompiledRule {
             }
         };
 
-        Ok(Self { label, kind: rule.kind, senders, subject, subject_has_code, body, link_prefix })
+        Ok(Self {
+            label,
+            kind: rule.kind,
+            senders,
+            subject_pat: subject_pat.to_string(),
+            subject,
+            subject_has_code,
+            body_pat: rule.body.trim().to_string(),
+            body,
+            link_prefix,
+        })
     }
 
     pub fn match_headers(&self, from: &str, subject: &str) -> Option<HeaderMatch> {
@@ -276,6 +315,67 @@ impl CompiledRule {
         } else {
             Some(HeaderMatch::NeedsBody)
         }
+    }
+
+    /// Checks the mail like `match_headers` + `match_body` and records each stage.
+    /// `body` is `None` if it was not loaded; the trace then stops before it.
+    pub fn trace(&self, from: &str, subject: &str, body: Option<&MailBody>) -> MatchTrace {
+        let mut trace = MatchTrace { rule: self.label.clone(), stages: vec![], value: None };
+        let mut stage = |stage, ok, detail: String| trace.stages.push(StageResult { stage, ok, detail });
+
+        let senders = self.senders.join(", ");
+        match (self.senders.is_empty(), sender_matches(&self.senders, from)) {
+            (true, _) => stage(Stage::Sender, true, "any sender".into()),
+            (false, true) => stage(Stage::Sender, true, format!("matches \"{senders}\"")),
+            (false, false) => {
+                stage(Stage::Sender, false, format!("does not match \"{senders}\""));
+                return trace;
+            }
+        }
+
+        let needs_body = match self.match_headers(from, subject) {
+            None => {
+                stage(Stage::Subject, false, format!("does not match \"{}\"", self.subject_pat));
+                return trace;
+            }
+            Some(HeaderMatch::Code(code)) => {
+                stage(Stage::Subject, true, format!("matches \"{}\", code in subject", self.subject_pat));
+                trace.value = Some(code);
+                false
+            }
+            Some(HeaderMatch::NeedsBody) if self.subject.is_none() => {
+                stage(Stage::Subject, true, "any subject".into());
+                true
+            }
+            Some(HeaderMatch::NeedsBody) => {
+                stage(Stage::Subject, true, format!("matches \"{}\"", self.subject_pat));
+                true
+            }
+        };
+        if !needs_body {
+            return trace;
+        }
+        let Some(body) = body else { return trace };
+
+        let value = self.match_body(body);
+        let found = value.is_some();
+        match self.kind {
+            RuleKind::Code if self.body_pat.is_empty() => {
+                stage(Stage::Body, found, if found { "code found".into() } else { "no code-like word in the text".into() })
+            }
+            RuleKind::Code => stage(
+                Stage::Body,
+                found,
+                format!("\"{}\" {} in the text", self.body_pat, if found { "found" } else { "not found" }),
+            ),
+            RuleKind::Link => stage(
+                Stage::Link,
+                found,
+                format!("{} link starting with \"{}\"", if found { "found" } else { "no" }, self.link_prefix),
+            ),
+        }
+        trace.value = value;
+        trace
     }
 
     pub fn match_body(&self, body: &MailBody) -> Option<String> {
@@ -305,17 +405,10 @@ impl CompiledRules {
 }
 
 /// Checks a single rule against sample data (used by the settings UI).
-/// Returns the code, or `None` if the rule does not match.
-pub fn test_rule(rule: &DetectionRule, from: &str, subject: &str, body: &str) -> Result<Option<String>> {
+pub fn test_rule(rule: &DetectionRule, from: &str, subject: &str, body: &str) -> Result<MatchTrace> {
     let compiled = CompiledRule::compile(rule)?;
-    Ok(match compiled.match_headers(from, subject) {
-        Some(HeaderMatch::Code(code)) => Some(code),
-        Some(HeaderMatch::NeedsBody) => compiled.match_body(&MailBody {
-            text: body.to_string(),
-            html: body.to_string(),
-        }),
-        None => None,
-    })
+    let body = MailBody { text: body.to_string(), html: body.to_string() };
+    Ok(compiled.trace(from, subject, Some(&body)))
 }
 
 pub fn default_rules() -> Vec<DetectionRule> {
@@ -411,7 +504,7 @@ mod tests {
     #[test]
     fn test_subject_code_case_insensitive() {
         let r = rule("", "{code} is your code", "");
-        assert_eq!(test_rule(&r, "", "123456 IS YOUR CODE", "").unwrap(), Some("123456".into()));
+        assert_eq!(test_rule(&r, "", "123456 IS YOUR CODE", "").unwrap().value, Some("123456".into()));
     }
 
     #[test]
@@ -426,15 +519,52 @@ mod tests {
     #[test]
     fn test_sender_filter() {
         let r = rule("*@github.com, noreply@*", "{code} is your code", "");
-        assert_eq!(test_rule(&r, "a@github.com", "1234 is your code", "").unwrap(), Some("1234".into()));
-        assert_eq!(test_rule(&r, "noreply@x.de", "1234 is your code", "").unwrap(), Some("1234".into()));
-        assert_eq!(test_rule(&r, "evil@x.de", "1234 is your code", "").unwrap(), None);
+        assert_eq!(test_rule(&r, "a@github.com", "1234 is your code", "").unwrap().value, Some("1234".into()));
+        assert_eq!(test_rule(&r, "noreply@x.de", "1234 is your code", "").unwrap().value, Some("1234".into()));
+        assert_eq!(test_rule(&r, "evil@x.de", "1234 is your code", "").unwrap().value, None);
     }
 
     #[test]
     fn test_sender_only_body_fallback() {
         let r = rule("*@bank.de", "", "");
-        assert_eq!(test_rule(&r, "tan@bank.de", "Ihre TAN", "Ihre TAN lautet 556677.").unwrap(), Some("556677".into()));
+        assert_eq!(test_rule(&r, "tan@bank.de", "Ihre TAN", "Ihre TAN lautet 556677.").unwrap().value, Some("556677".into()));
+    }
+
+    #[test]
+    fn test_trace_stops_at_failed_stage() {
+        let c = CompiledRule::compile(&rule("*@service.com", "Your code for *", "Code: {code}")).unwrap();
+        let body = MailBody { text: "Hello".into(), html: String::new() };
+
+        let t = c.trace("x@other.com", "Your code for Service", Some(&body));
+        assert_eq!(t.stages.iter().map(|s| (s.stage, s.ok)).collect::<Vec<_>>(), [(Stage::Sender, false)]);
+
+        let t = c.trace("login@service.com", "Weekly news", Some(&body));
+        assert_eq!(t.stages.last().map(|s| (s.stage, s.ok)), Some((Stage::Subject, false)));
+
+        let t = c.trace("login@service.com", "Your code for Service", Some(&body));
+        assert_eq!(t.stages.last().map(|s| (s.stage, s.ok)), Some((Stage::Body, false)));
+        assert!(t.stages[2].detail.contains("not found"), "{}", t.stages[2].detail);
+        assert_eq!(t.value, None);
+    }
+
+    #[test]
+    fn test_trace_without_body_ends_after_headers() {
+        let c = CompiledRule::compile(&rule("", "Your code for *", "Code: {code}")).unwrap();
+        let t = c.trace("a@b.c", "Your code for Service", None);
+        assert_eq!(t.stages.iter().map(|s| (s.stage, s.ok)).collect::<Vec<_>>(), [(Stage::Sender, true), (Stage::Subject, true)]);
+    }
+
+    #[test]
+    fn test_trace_code_in_subject_and_link() {
+        let c = CompiledRule::compile(&rule("", "{code} is your code", "")).unwrap();
+        let t = c.trace("a@b.c", "4711 is your code", None);
+        assert_eq!(t.value.as_deref(), Some("4711"));
+        assert!(t.stages.iter().all(|s| s.ok && s.stage != Stage::Body));
+
+        let c = CompiledRule::compile(&link_rule("https://claude.ai/magic-link")).unwrap();
+        let body = MailBody { text: "https://claude.ai/help".into(), html: String::new() };
+        let t = c.trace("no-reply@mail.anthropic.com", "Secure link to log in", Some(&body));
+        assert_eq!(t.stages.last().map(|s| (s.stage, s.ok)), Some((Stage::Link, false)));
     }
 
     #[test]
@@ -453,7 +583,7 @@ mod tests {
         let r: DetectionRule = serde_json::from_str(json).unwrap();
         assert_eq!(r.subject, "{code} is your code");
         assert_eq!(r.code_pattern, "[0-9]+");
-        assert_eq!(test_rule(&r, "", "4711 is your code", "").unwrap(), Some("4711".into()));
+        assert_eq!(test_rule(&r, "", "4711 is your code", "").unwrap().value, Some("4711".into()));
     }
 
     fn link_rule(prefix: &str) -> DetectionRule {
@@ -506,7 +636,7 @@ mod spotify_tests {
         r.sender = "*".into();
         r.subject = "{code} * dein Spotify Anmeldecode".into();
         r.body = String::new();
-        let code = test_rule(&r, "no-reply@alerts.spotify.com", "913088\u{a0}\u{2013} dein Spotify Anmeldecode", "").unwrap();
+        let code = test_rule(&r, "no-reply@alerts.spotify.com", "913088\u{a0}\u{2013} dein Spotify Anmeldecode", "").unwrap().value;
         assert_eq!(code.as_deref(), Some("913088"));
     }
 }

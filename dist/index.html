@@ -706,14 +706,19 @@ function cleanRule(r) {
            body: r.body || '', code_pattern: r.code_pattern || '', link_prefix: r.link_prefix || '', enabled: !!r.enabled }
 }
 
+const STAGE_LABEL = { sender: 'Sender', subject: 'Subject', body: 'Body:', link: 'Body:' }
+
 async function runTest(i) {
   const r = editingRules[i], el = document.getElementById('test-' + i)
   if (!el) return
   if (!r._tFrom && !r._tSubject && !r._tBody) { el.className = 'test-result'; el.textContent = 'Enter a sample mail.'; return }
   try {
-    const code = await invoke('test_rule', { rule: cleanRule(r), from: r._tFrom||'', subject: r._tSubject||'', body: r._tBody||'' })
-    el.className = 'test-result ' + (code ? 'ok' : 'err')
-    el.textContent = code ? `✓ ${r.kind === 'link' ? 'Link' : 'Code'} found: ${code}` : '✗ No match'
+    const trace = await invoke('test_rule', { rule: cleanRule(r), from: r._tFrom||'', subject: r._tSubject||'', body: r._tBody||'' })
+    const failed = trace.stages.find(s => !s.ok)
+    el.className = 'test-result ' + (trace.value ? 'ok' : 'err')
+    el.textContent = trace.value
+      ? `✓ ${r.kind === 'link' ? 'Link' : 'Code'} found: ${trace.value}`
+      : `✗ No match – ${failed ? `${STAGE_LABEL[failed.stage]} ${failed.detail}` : 'nothing found'}`
   } catch(e) {
     el.className = 'test-result err'
     el.textContent = '⚠ ' + e
