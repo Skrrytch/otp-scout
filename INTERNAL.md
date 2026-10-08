@@ -149,7 +149,7 @@ Versions up to 0.2.0 kept the rules in `accounts[].rules`. On first start they a
 
 An account that checks no rule uses the built-in default rule.
 
-The account dialog still edits the rules of one account: changing a shared rule changes it for all its accounts, removing it there only detaches it from this account. A deleted account's tag is removed from all rules; rules left without tags stay in the file.
+Rules are edited in the *Rules* section; changes reach the running connections without reconnecting. A deleted account's tag is removed from all rules; rules left without tags stay in the file and are flagged in the UI. Renaming an account's tag renames it in all rules.
 
 ### Field Reference
 

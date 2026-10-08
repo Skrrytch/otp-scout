@@ -444,13 +444,15 @@ pub struct CompiledRules {
 }
 
 impl CompiledRules {
-    pub fn compile(rules: &[DetectionRule]) -> Result<Self> {
+    /// Compiles the enabled rules. Invalid ones are logged and skipped, so one
+    /// broken rule does not stop the others (rules are validated on save).
+    pub fn compile(rules: &[DetectionRule]) -> Self {
         let rules = rules
             .iter()
             .filter(|r| r.enabled)
-            .map(CompiledRule::compile)
-            .collect::<Result<_>>()?;
-        Ok(Self { rules })
+            .filter_map(|r| CompiledRule::compile(r).inspect_err(|e| tracing::error!("Rule skipped: {e:#}")).ok())
+            .collect();
+        Self { rules }
     }
 }
 
@@ -543,14 +545,14 @@ mod tests {
 
     #[test]
     fn test_default_rule_subject_match() {
-        let rules = CompiledRules::compile(&default_rules()).unwrap();
+        let rules = CompiledRules::compile(&default_rules());
         let m = rules.rules[0].match_headers("x@y.z", "AB12-CD is your verification code");
         assert_eq!(m, Some(HeaderMatch::Code("AB12-CD".into())));
     }
 
     #[test]
     fn test_default_rule_no_match() {
-        let rules = CompiledRules::compile(&default_rules()).unwrap();
+        let rules = CompiledRules::compile(&default_rules());
         assert_eq!(rules.rules[0].match_headers("x@y.z", "Your invoice is ready"), None);
     }
 

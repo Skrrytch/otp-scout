@@ -43,15 +43,17 @@ For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
 ## Getting Started
 
 1. Click the tray icon and choose **Settings**.
-2. Click **+ Add account** and enter your mail server, username and password.
+2. Under **Accounts**, click **+ Add account** and enter your mail server, username and password. **Test connection** checks them before you save.
    - **Gmail:** server `imap.gmail.com`, and an [app password](https://myaccount.google.com/apppasswords) instead of your normal password.
    - **Proton Mail:** see [below](#proton-mail).
-3. Save — the account card shows whether the connection works.
+3. Save — the account list shows whether the connection works.
 4. Send yourself a test: an email with the subject `123456 is your verification code` pops up right away.
 
 ## Rules: Telling OTP-Scout What to Look For
 
-Out of the box, OTP-Scout recognizes emails whose subject reads like *"123456 is your verification code"*. For other services, add your own rules when editing an account.
+Out of the box, OTP-Scout recognizes emails whose subject reads like *"123456 is your verification code"*. For other services, add rules under **Rules** — your own, or ready-made ones from the **Catalog**.
+
+Each rule says which accounts check it: *All accounts* (the default), or only some of them. A rule for your work account then doesn't fire on your private mail. Changing a rule takes effect with the next mail, without reconnecting.
 
 ### Code rules
 
@@ -73,7 +75,7 @@ For services that send a login link instead of a code: enter the sender and/or s
 
 ### Try before you save
 
-Every rule has a **Test this rule** box: paste a sample subject or email text and see immediately whether the code or link is found.
+The rule editor has a test box: paste a sample sender, subject or email text and see immediately whether the code or link is found — or at which step the rule fails.
 
 ## Proton Mail
 

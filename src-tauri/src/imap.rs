@@ -8,12 +8,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc::Sender, Notify};
+use tokio::sync::{mpsc::Sender, watch, Notify};
 use tokio_native_tls::TlsConnector as TokioTlsConnector;
 
 use crate::config::{AccountConfig, Security};
 use crate::log;
-use crate::rules::{self, CompiledRules, HeaderMatch, MailBody, RuleKind, Stage};
+use crate::rule_store;
+use crate::rules::{self, CompiledRules, DetectionRule, HeaderMatch, MailBody, RuleKind, Stage};
 use crate::status;
 
 /// Re-issue IDLE this often. Short enough to notice silently dropped
@@ -114,18 +115,32 @@ pub async fn delete_message(account: &AccountConfig, uid: u32) -> Result<()> {
     Ok(())
 }
 
+/// Logs in and opens the mailbox, for the "Test connection" button.
+pub async fn test_connection(account: &AccountConfig) -> Result<String> {
+    let mut session = connect(account).await?;
+    let mailbox = session
+        .select(&account.mailbox)
+        .await
+        .with_context(|| format!("Login OK, but mailbox '{}' not found", account.mailbox))?;
+    session.logout().await.ok();
+    Ok(format!("Connected – {} mails in {}", mailbox.exists, account.mailbox))
+}
+
+/// The rules this account checks; the built-in default if none is assigned.
+fn compile_for(account: &AccountConfig, all: &[DetectionRule]) -> CompiledRules {
+    let own = rule_store::rules_for(all, &account.tag);
+    CompiledRules::compile(&if own.is_empty() { rules::default_rules() } else { own })
+}
+
 pub async fn run_idle_loop(
     app: AppHandle,
     tx: Sender<String>,
     account: AccountConfig,
     check: Arc<Notify>,
     last_uid: Arc<AtomicU32>,
+    rules_rx: &mut watch::Receiver<Vec<DetectionRule>>,
 ) -> Result<()> {
-    let rules = if account.rules.is_empty() {
-        CompiledRules::compile(&rules::default_rules())?
-    } else {
-        CompiledRules::compile(&account.rules)?
-    };
+    let mut rules = compile_for(&account, &rules_rx.borrow_and_update());
 
     status::set(&app, &account.id, "connecting", format!("Connecting to {}…", account.server));
     log::event(&app, &account.id, &account.label, "info", format!("Connecting to {}:{}", account.server, account.port));
@@ -193,6 +208,13 @@ pub async fn run_idle_loop(
             .await
             .context("Server did not respond – connection lost")?
             .context("Failed to end IDLE")?;
+
+        // Rule changes apply from the next check on, without reconnecting.
+        if rules_rx.has_changed().unwrap_or(false) {
+            rules = compile_for(&account, &rules_rx.borrow_and_update());
+            let message = format!("Rules updated – {} active", rules.rules.len());
+            log::event(&app, &account.id, &account.label, "info", message);
+        }
 
         // All mails newer than the last one seen, read or not: another client
         // may already have marked a code mail as read.

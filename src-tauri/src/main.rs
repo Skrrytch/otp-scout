@@ -33,6 +33,15 @@ struct AppState {
     tasks: Mutex<Vec<ImapTask>>,
     /// Wakes all IDLE loops for an immediate mailbox check.
     check_now: Arc<Notify>,
+    /// Current rules; IDLE loops pick up changes without reconnecting.
+    rules: tokio::sync::watch::Sender<Vec<rules::DetectionRule>>,
+}
+
+impl AppState {
+    fn publish_rules(&self, rules: Vec<rules::DetectionRule>) -> Vec<rules::DetectionRule> {
+        self.rules.send_replace(rules.clone());
+        rules
+    }
 }
 
 #[tauri::command]
@@ -55,7 +64,50 @@ fn update_account(
 
 #[tauri::command]
 fn remove_account(state: State<AppState>, id: String) -> Result<Vec<AccountConfig>, String> {
-    config::remove_account(&state.config, &id).map_err(|e| e.to_string())
+    let accounts = config::remove_account(&state.config, &id).map_err(|e| e.to_string())?;
+    state.publish_rules(config::get_rules(&state.config));
+    Ok(accounts)
+}
+
+#[tauri::command]
+fn rename_tag(state: State<AppState>, account_id: String, tag: String) -> Result<Vec<AccountConfig>, String> {
+    let accounts = config::rename_tag(&state.config, &account_id, &tag).map_err(|e| format!("{e:#}"))?;
+    state.publish_rules(config::get_rules(&state.config));
+    Ok(accounts)
+}
+
+#[tauri::command]
+async fn test_connection(account: AccountConfig) -> Result<String, String> {
+    let account = config::with_stored_password(account).map_err(|e| format!("{e:#}"))?;
+    imap::test_connection(&account).await.map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn get_rules(state: State<AppState>) -> Vec<rules::DetectionRule> {
+    config::get_rules(&state.config)
+}
+
+#[tauri::command]
+fn save_rule(state: State<AppState>, rule: rules::DetectionRule) -> Result<Vec<rules::DetectionRule>, String> {
+    config::save_rule(&state.config, rule).map(|r| state.publish_rules(r)).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn delete_rule(state: State<AppState>, id: String) -> Result<Vec<rules::DetectionRule>, String> {
+    config::delete_rule(&state.config, &id).map(|r| state.publish_rules(r)).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn move_rule(state: State<AppState>, id: String, delta: i32) -> Result<Vec<rules::DetectionRule>, String> {
+    config::move_rule(&state.config, &id, delta).map(|r| state.publish_rules(r)).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn show_about(app: AppHandle) {
+    if let Some(about) = app.get_webview_window("about") {
+        let _ = about.show();
+        let _ = about.set_focus();
+    }
 }
 
 /// Immediate IMAP check: wakes running connections, reconnects failed ones.
@@ -197,11 +249,12 @@ async fn spawn_imap_tasks(
         let label = account.label.clone();
         let app_handle = app.clone();
         let check = state.check_now.clone();
+        let rules_rx = state.rules.subscribe();
         let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
 
         async_runtime::spawn(async move {
             tokio::select! {
-                _ = run_with_reconnect(app_handle, tx, account, check) => {}
+                _ = run_with_reconnect(app_handle, tx, account, check, rules_rx) => {}
                 _ = stop_rx => {
                     tracing::info!("[{label}] IMAP task stopped");
                 }
@@ -227,6 +280,7 @@ async fn run_with_reconnect(
     tx: mpsc::Sender<String>,
     account: AccountConfig,
     check: Arc<Notify>,
+    mut rules_rx: tokio::sync::watch::Receiver<Vec<rules::DetectionRule>>,
 ) {
     let label = account.label.clone();
     let mut delay = RETRY_MIN;
@@ -235,7 +289,7 @@ async fn run_with_reconnect(
     let last_uid = Arc::new(std::sync::atomic::AtomicU32::new(0));
     loop {
         let started = Instant::now();
-        let Err(e) = imap::run_idle_loop(app.clone(), tx.clone(), account.clone(), check.clone(), last_uid.clone()).await else {
+        let Err(e) = imap::run_idle_loop(app.clone(), tx.clone(), account.clone(), check.clone(), last_uid.clone(), &mut rules_rx).await else {
             continue;
         };
         if started.elapsed() > HEALTHY_AFTER {
@@ -376,12 +430,15 @@ fn main() {
         .init();
 
     let accounts = config::load_accounts_with_passwords().unwrap_or_default();
-    let config = Arc::new(Mutex::new(config::load_config().unwrap_or_default()));
+    let config = config::load_config().unwrap_or_default();
+    let (rules, _) = tokio::sync::watch::channel(config.rules.clone());
+    let config = Arc::new(Mutex::new(config));
 
     let app_state = AppState {
         config: config.clone(),
         tasks: Mutex::new(Vec::new()),
         check_now: Arc::new(Notify::new()),
+        rules,
     };
 
     tauri::Builder::default()
@@ -399,6 +456,13 @@ fn main() {
             remove_account,
             restart_imap,
             get_default_rules,
+            rename_tag,
+            test_connection,
+            get_rules,
+            save_rule,
+            delete_rule,
+            move_rule,
+            show_about,
             get_status,
             get_log,
             clear_log,

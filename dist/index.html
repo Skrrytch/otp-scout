@@ -7,116 +7,154 @@
 :root {
   --bg:#f4f6fb; --surface:#ffffff; --surface-2:#eef1f7; --border:#d5dbe7;
   --text:#1c2333; --muted:#5b667a; --accent:#2563eb; --accent-hover:#1d4ed8;
-  --accent-soft:#e0e9fd; --danger:#dc2626; --danger-hover:#b91c1c; --ok:#16a34a;
+  --accent-soft:#e0e9fd; --danger:#dc2626; --danger-hover:#b91c1c; --ok:#16a34a; --warn:#d97706;
   --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg:#14171f; --surface:#1d2230; --surface-2:#262c3d; --border:#343c52;
     --text:#e8ecf4; --muted:#a3adc2; --accent:#4f8cff; --accent-hover:#6b9fff;
-    --accent-soft:#233355; --danger:#ef4444; --danger-hover:#f87171; --ok:#22c55e;
+    --accent-soft:#233355; --danger:#ef4444; --danger-hover:#f87171; --ok:#22c55e; --warn:#fbbf24;
     --shadow:0 1px 3px rgba(0,0,0,.4);
   }
 }
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:var(--bg); color:var(--text); padding:20px; font-size:14px; line-height:1.45; }
-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
-h1 { font-size:20px; font-weight:650; }
-h1 small { display:block; font-size:12px; font-weight:400; color:var(--muted); }
-h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 0 8px; }
-.btn-bar { display:flex; gap:8px; }
+html, body { height:100%; }
+body { font-family:"Inter","Segoe UI",Roboto,"Noto Sans",sans-serif; background:var(--bg); color:var(--text); font-size:14px; line-height:1.45; }
+h1 { font-size:18px; font-weight:650; }
+
+/* Layout: fixed sidebar, scrolling content */
+.app { display:grid; grid-template-columns:180px 1fr; height:100%; }
+.sidebar { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:16px 10px; gap:2px; }
+.brand { font-size:17px; font-weight:650; padding:0 10px 14px; }
+.brand small { display:block; font-size:11.5px; font-weight:400; color:var(--muted); }
+.nav-btn { display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:none; border-radius:6px; padding:8px 10px; color:var(--muted); font-weight:550; }
+.nav-btn:hover { background:var(--surface-2); color:var(--text); border-color:transparent; }
+.nav-btn.on { background:var(--accent-soft); color:var(--accent); }
+.nav-btn .badge { margin-left:auto; }
+.sidebar-foot { margin-top:auto; display:flex; flex-direction:column; gap:6px; padding-top:12px; border-top:1px solid var(--border); }
+.sidebar-foot button { width:100%; }
+.content { overflow-y:auto; padding:20px 24px 40px; }
+.section { display:none; }
+.section.on { display:block; }
+.page-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.page-head .btn-bar { display:flex; gap:8px; flex-wrap:wrap; }
+.back { background:none; border:none; padding:0; color:var(--accent); font-weight:550; margin-bottom:8px; }
+.back:hover { text-decoration:underline; border-color:transparent; }
+
+/* Status indicators */
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); opacity:.5; flex:none; }
+.dot.ok, .dot.listening { background:var(--ok); opacity:1; }
+.dot.error { background:var(--danger); opacity:1; }
+.dot.connecting { background:#f59e0b; opacity:1; }
+.badge-warn { font-size:11px; min-width:18px; text-align:center; padding:0 5px; border-radius:9px; background:var(--warn); color:#fff; }
+
+/* Controls */
 button { padding:7px 14px; border:1px solid transparent; border-radius:6px; cursor:pointer; font-size:13px; font-weight:550; font-family:inherit; background:var(--surface-2); color:var(--text); border-color:var(--border); }
 button:hover { border-color:var(--accent); }
+button:disabled { opacity:.5; cursor:default; }
 .btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
 .btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
 .btn-danger { background:transparent; color:var(--danger); border-color:var(--danger); }
 .btn-danger:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
 .btn-sm { padding:4px 11px; font-size:12px; }
 .btn-xs { padding:3px 8px; font-size:12px; line-height:1; }
-.account-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
-.account-card .head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
-.account-card h3 { font-size:15px; font-weight:600; }
-.account-card .actions { display:flex; gap:6px; }
-.info { font-size:13px; display:grid; grid-template-columns:90px 1fr; gap:4px 12px; }
-.info dt { color:var(--muted); }
-.info dd { word-break:break-all; }
-.chip { display:inline-block; background:var(--accent-soft); color:var(--text); border-radius:4px; padding:1px 7px; margin:0 4px 3px 0; font-size:12px; }
-.chip code { font-family:ui-monospace,"JetBrains Mono",monospace; color:var(--muted); }
-.dim { color:var(--muted); }
-.empty-state { text-align:center; padding:48px 20px; color:var(--muted); background:var(--surface); border:1px dashed var(--border); border-radius:10px; }
-.form-overlay { display:none; position:fixed; inset:0; background:rgba(10,14,25,.55); justify-content:center; align-items:center; z-index:10; padding:16px; }
-.form-overlay.active { display:flex; }
-.form-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; width:760px; max-width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,.3); }
-.form-box { display:flex; flex-direction:column; height:min(92vh, 780px); overflow:hidden !important; }
-.form-box > h2:first-child { font-size:17px; text-transform:none; letter-spacing:0; color:var(--text); margin:0 0 16px; }
+input, select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; }
+input::placeholder, textarea::placeholder { color:var(--muted); opacity:.7; }
+input:focus, select:focus, textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; resize:vertical; }
 label.check { display:flex !important; align-items:center; gap:8px; color:var(--text) !important; font-size:13px !important; font-weight:400 !important; padding-top:8px; cursor:pointer; }
 label.check input { width:auto; }
+.form-group { margin-bottom:12px; }
+.form-group > label { display:block; font-size:12px; font-weight:550; color:var(--muted); margin-bottom:4px; }
+.form-group label small { font-weight:400; }
 .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
 .grid-port { display:grid; grid-template-columns:1fr 100px; gap:0 12px; }
-.form-group { margin-bottom:12px; }
-.form-group label { display:block; font-size:12px; font-weight:550; color:var(--muted); margin-bottom:4px; }
-.form-group label small { font-weight:400; }
-input, select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; }
-input::placeholder { color:var(--muted); opacity:.7; }
-input:focus, select:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
-.rule-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--surface-2); }
-.rule-card.disabled { opacity:.6; }
-.rule-top { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
-.rule-top input[type=text] { font-weight:600; }
-.rule-top label { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted); white-space:nowrap; }
-.rule-top input[type=checkbox] { width:auto; }
-.tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin:-4px 0 16px; }
-.tabs button { background:none; border:none; border-bottom:2px solid transparent; border-radius:0; color:var(--muted); padding:8px 14px; margin-bottom:-1px; }
-.tabs button:hover { color:var(--text); border-color:transparent; border-bottom-color:var(--border); }
-.tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
-.tabs .count { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:var(--surface-2); color:var(--muted); font-size:11px; }
-.tabs .count:empty { display:none; }
-.main-tabs { margin:0 0 16px; }
-.main-panel { display:none; }
-.main-panel.on { display:block; }
-.api-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:4px; vertical-align:middle; background:var(--muted); opacity:.5; }
-.api-dot.listening { background:var(--ok); opacity:1; }
-.api-dot.error { background:var(--danger); opacity:1; }
-.token-row { display:flex; gap:6px; }
-.token-row input { flex:1; }
-.link-row { display:flex; gap:6px; margin-bottom:6px; }
-.link-row input { flex:1; }
-pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.5px; line-height:1.5; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; overflow-x:auto; white-space:pre; }
-.tab-body { flex:1; overflow-y:auto; margin:0 -22px; padding:0 22px; }
-.tab-panel { display:none; }
-.tab-panel.on { display:block; }
-.empty-rules { font-size:13px; color:var(--muted); text-align:center; padding:24px 10px; border:1px dashed var(--border); border-radius:10px; margin-bottom:12px; }
+.grid-code { display:grid; grid-template-columns:200px 1fr; gap:0 10px; }
 .hint { font-size:11.5px; color:var(--muted); margin-top:3px; }
 .hint code, .mono { font-family:ui-monospace,"JetBrains Mono",monospace; }
 .hint code { background:var(--accent-soft); padding:0 4px; border-radius:3px; color:var(--text); }
-.grid-code { display:grid; grid-template-columns:200px 1fr; gap:0 10px; }
-textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px; font-family:inherit; resize:vertical; }
-textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
-details.tester { margin-top:4px; }
-details.tester summary { cursor:pointer; font-size:12px; color:var(--accent); font-weight:550; }
-details.tester .body { margin-top:8px; padding:10px; border-radius:8px; background:var(--surface); border:1px solid var(--border); }
-.test-result { font-size:13px; font-weight:550; padding:6px 10px; border-radius:6px; background:var(--bg); }
-.test-result.ok { color:var(--ok); }
-.test-result.err { color:var(--danger); }
-.status { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:10px; padding:7px 10px; border-radius:6px; background:var(--surface-2); }
-.status .dot { width:9px; height:9px; border-radius:50%; margin-top:4px; flex:none; background:var(--muted); }
-.status.ok .dot { background:var(--ok); }
-.status.error .dot { background:var(--danger); }
-.status.connecting .dot { background:#f59e0b; }
+.dim { color:var(--muted); }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.form-actions { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:16px; }
+.form-actions .left { margin-right:auto; }
+.empty-state { text-align:center; padding:40px 20px; color:var(--muted); background:var(--surface); border:1px dashed var(--border); border-radius:10px; }
+.chip { display:inline-flex; align-items:center; gap:4px; background:var(--accent-soft); color:var(--text); border-radius:4px; padding:1px 7px; margin:0 4px 3px 0; font-size:12px; }
+.chip.warn { background:transparent; border:1px solid var(--warn); color:var(--warn); }
+.chip button { background:none; border:none; padding:0 0 0 2px; font-size:12px; color:var(--muted); }
+.status { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; padding:7px 10px; border-radius:6px; background:var(--surface-2); }
+.status .dot { margin-top:5px; }
 .status.error { color:var(--danger); }
 .status .when { color:var(--muted); margin-left:auto; white-space:nowrap; padding-left:8px; }
 .status .msg { word-break:break-word; }
-.form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+
+/* Accounts */
+.account-row { display:grid; grid-template-columns:1fr auto; gap:6px 12px; cursor:pointer; }
+.account-row:hover { border-color:var(--accent); }
+.account-row h3 { font-size:15px; font-weight:600; }
+.account-row .meta { font-size:12.5px; color:var(--muted); }
+.account-row .status { grid-column:1 / -1; }
+.account-row > [id^=status-] { grid-column:1 / -1; }
+.link { background:none; border:none; padding:0; color:var(--accent); font-weight:550; font-size:12.5px; }
+.link:hover { text-decoration:underline; border-color:transparent; }
+.test-conn { margin-top:10px; }
+
+/* Rules */
+.toolbar { display:grid; grid-template-columns:1fr 200px; gap:8px; margin-bottom:12px; }
+.rule-list { background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
+.rule-row { display:grid; grid-template-columns:22px 1fr auto; gap:2px 10px; align-items:center; padding:9px 12px; border-bottom:1px solid var(--border); cursor:pointer; }
+.rule-row:last-child { border-bottom:none; }
+.rule-row:hover { background:var(--surface-2); }
+.rule-row.off { opacity:.55; }
+.rule-row .name { font-weight:600; }
+.rule-row .pattern { grid-column:2; font-size:12px; color:var(--muted); font-family:ui-monospace,"JetBrains Mono",monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rule-row .tags { grid-column:2; }
+.rule-row .ctl { grid-row:1 / span 3; grid-column:3; display:flex; gap:4px; align-items:center; }
+.rule-row .ctl input { width:auto; }
+.segmented { display:inline-flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; margin-bottom:14px; }
+.segmented button { border:none; border-radius:0; background:var(--surface); padding:6px 16px; }
+.segmented button.on { background:var(--accent); color:#fff; }
+.tag-editor { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:5px 6px; border:1px solid var(--border); border-radius:6px; background:var(--bg); }
+.tag-editor .chip { margin:0; }
+.tag-editor select { width:auto; padding:3px 6px; font-size:12px; border:none; background:transparent; color:var(--accent); }
+.tester { margin-top:6px; padding:12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); }
+.tester h4 { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
+.test-result { font-size:13px; font-weight:550; padding:6px 10px; border-radius:6px; background:var(--bg); }
+.test-result.ok { color:var(--ok); }
+.test-result.err { color:var(--danger); }
+.stages { margin-top:6px; font-size:12.5px; }
+.stage { display:grid; grid-template-columns:18px 64px 1fr; color:var(--muted); }
+.stage.ok > :first-child { color:var(--ok); }
+.stage.fail { color:var(--text); }
+.stage.fail > :first-child { color:var(--danger); }
+
+/* Catalog */
 .catalog-bar { display:grid; grid-template-columns:1fr 140px; gap:8px; margin-bottom:12px; }
 .cat-group { margin-bottom:12px; }
 .cat-group h4 { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:4px; }
-.cat-app { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); margin-bottom:4px; }
+.cat-app { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); margin-bottom:4px; flex-wrap:wrap; }
 .cat-app .name { flex:1; font-weight:550; }
 .cat-app .added { font-size:12px; color:var(--ok); }
+.cat-pick { flex-basis:100%; display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; padding:8px 2px 2px; border-top:1px dashed var(--border); margin-top:4px; }
+.cat-pick label { display:flex; align-items:center; gap:5px; font-size:12.5px; }
+.cat-pick input { width:auto; }
 .kind-badge { font-size:11px; padding:1px 7px; border-radius:9px; background:var(--accent-soft); color:var(--text); white-space:nowrap; }
 .unverified-badge { font-size:11px; padding:1px 7px; border-radius:9px; border:1px solid #f59e0b; color:#b45309; white-space:nowrap; }
 @media (prefers-color-scheme: dark) { .unverified-badge { color:#fbbf24; } }
 .btn-add { width:26px; height:26px; padding:0; border-radius:50%; font-size:16px; line-height:1; }
+.btn-add-more { height:26px; padding:0 7px; font-size:11px; }
+
+/* API */
+.token-row, .link-row { display:flex; gap:6px; }
+.link-row { margin-bottom:6px; }
+.token-row input, .link-row input { flex:1; }
+.info { font-size:13px; display:grid; grid-template-columns:90px 1fr; gap:4px 12px; }
+.info dt { color:var(--muted); }
+pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.5px; line-height:1.5; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; overflow-x:auto; white-space:pre; }
+.head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.head h3 { font-size:15px; font-weight:600; }
+
+/* Log */
 .log-bar { display:grid; grid-template-columns:150px 130px 1fr auto auto; gap:8px; margin-bottom:12px; }
 .log-list { background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
 .log-row { display:grid; grid-template-columns:62px 18px 1fr; gap:4px 8px; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; cursor:pointer; }
@@ -125,7 +163,7 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
 .log-row.open { background:var(--accent-soft); }
 .log-row .time { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; padding-top:1px; }
 .log-row .sym.found { color:var(--ok); }
-.log-row .sym.partial { color:#d97706; }
+.log-row .sym.partial { color:var(--warn); }
 .log-row .sym.no_match, .log-row .sym.filtered { color:var(--muted); }
 .log-row .sym.error { color:var(--danger); }
 .log-row .main { min-width:0; }
@@ -138,43 +176,161 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
 .log-detail { grid-column:2 / -1; cursor:default; margin-top:6px; padding:10px 12px; border-radius:8px; background:var(--surface); border:1px solid var(--border); }
 .trace { margin-bottom:8px; font-size:12.5px; }
 .trace .name { font-weight:600; margin-bottom:2px; }
-.trace .stage { display:grid; grid-template-columns:18px 64px 1fr; color:var(--muted); }
-.trace .stage.ok > :first-child { color:var(--ok); }
-.trace .stage.fail { color:var(--text); }
-.trace .stage.fail > :first-child { color:var(--danger); }
 .trace-more { font-size:12px; color:var(--muted); margin-bottom:8px; }
 .log-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-.log-paused { font-size:12px; color:#b45309; text-align:center; padding:6px; background:var(--surface-2); }
-.rule-card.flash { outline:2px solid var(--accent); }
+.log-paused { font-size:12px; color:var(--warn); text-align:center; padding:6px; background:var(--surface-2); }
+
 #toast { display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; border-radius:8px; font-size:13px; z-index:20; color:#fff; box-shadow:var(--shadow); max-width:80vw; }
 #toast.success { background:var(--ok); }
 #toast.error { background:var(--danger); }
 </style>
 </head>
 <body>
+<div class="app">
 
-<header>
-  <h1>OTP-Scout<small>IMAP accounts &amp; detection rules</small></h1>
-  <div class="btn-bar">
-    <button onclick="invoke('check_now').then(() => showToast('Checking…', 'success'))">Check now</button>
-    <button onclick="restartImap().then(() => showToast('Reconnecting…', 'success'))">Reconnect all</button>
-    <button class="btn-primary" onclick="showForm()">+ Add account</button>
+<aside class="sidebar">
+  <div class="brand">OTP-Scout<small>Settings</small></div>
+  <button class="nav-btn" data-sec="accounts" onclick="go('accounts')">Accounts <span class="badge dot" id="dot-accounts"></span></button>
+  <button class="nav-btn" data-sec="rules" onclick="go('rules')">Rules <span class="badge" id="badge-rules"></span></button>
+  <button class="nav-btn" data-sec="catalog" onclick="go('catalog')">Catalog</button>
+  <button class="nav-btn" data-sec="api" onclick="go('api')">API <span class="badge dot" id="api-dot"></span></button>
+  <button class="nav-btn" data-sec="log" onclick="go('log')">Log</button>
+  <div class="sidebar-foot">
+    <button class="btn-sm" onclick="invoke('check_now').then(() => showToast('Checking…', 'success'))">Check now</button>
+    <button class="btn-sm" onclick="invoke('show_about')">About</button>
   </div>
-</header>
+</aside>
 
-<nav class="tabs main-tabs">
-  <button data-main="accounts" class="on" onclick="showMainTab('accounts')">Accounts</button>
-  <button data-main="api" onclick="showMainTab('api')">API <span class="api-dot" id="api-dot"></span></button>
-  <button data-main="log" onclick="showMainTab('log')">Log</button>
-</nav>
+<main class="content">
 
-<section class="main-panel on" data-main="accounts">
-  <div id="account-list"></div>
+<!-- ======== Accounts ======== -->
+<section class="section" data-sec="accounts">
+  <div id="accounts-list-view">
+    <div class="page-head">
+      <h1>Accounts</h1>
+      <div class="btn-bar">
+        <button onclick="restartImap().then(() => showToast('Reconnecting…', 'success'))">Reconnect all</button>
+        <button class="btn-primary" onclick="openAccount(null)">+ Add account</button>
+      </div>
+    </div>
+    <div id="account-list"></div>
+  </div>
+
+  <div id="accounts-detail-view" style="display:none">
+    <button class="back" onclick="closeAccount()">← Accounts</button>
+    <div class="page-head"><h1 id="acc-title">Add account</h1></div>
+    <div class="card">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Display name</label>
+          <input id="f-label" placeholder="e.g. Gmail">
+        </div>
+        <div class="form-group">
+          <label>Mailbox</label>
+          <input id="f-mailbox" value="INBOX">
+        </div>
+      </div>
+      <div class="grid-port">
+        <div class="form-group">
+          <label>IMAP server</label>
+          <input id="f-server" placeholder="imap.example.com">
+        </div>
+        <div class="form-group">
+          <label>Port</label>
+          <input id="f-port" type="number" value="993">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Encryption</label>
+          <select id="f-security" onchange="onSecurityChange()">
+            <option value="ssl">SSL/TLS (port 993)</option>
+            <option value="starttls">STARTTLS (port 143)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <label class="check"><input type="checkbox" id="f-invalid-certs"> Accept self-signed certificate</label>
+        </div>
+      </div>
+      <div class="hint" style="margin:-6px 0 12px">Proton Mail Bridge: server <code>127.0.0.1</code>, port <code>1143</code>, STARTTLS, accept self-signed certificate, and the bridge password shown in the Bridge app. Codes arrive up to ~40&nbsp;s late – the Bridge polls Proton only every 20–40&nbsp;s.</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Username</label>
+          <input id="f-user" placeholder="user@example.com" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Password <small>(system keyring)</small></label>
+          <input id="f-pass" type="password" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Allowed senders for all rules <small>(optional)</small></label>
+        <input id="f-sender-filter" placeholder="e.g. *@github.com, noreply@*">
+        <div class="hint">Comma-separated, <code>*</code> = any text. Empty = mails from any sender are checked.</div>
+      </div>
+      <div class="form-actions">
+        <button class="left" onclick="testConnection()">Test connection</button>
+        <button onclick="closeAccount()">Cancel</button>
+        <button class="btn-primary" onclick="saveAccount()">Save</button>
+      </div>
+      <div class="test-conn" id="test-conn"></div>
+    </div>
+
+    <div class="card" id="acc-tag-card">
+      <div class="head"><h3>Tag</h3><button class="link" id="acc-rules-link"></button></div>
+      <div class="token-row">
+        <input id="f-tag" class="mono">
+        <button class="btn-sm" onclick="renameTag()">Rename</button>
+      </div>
+      <div class="hint">Rules are assigned to this account by its tag. It stays the same when the account is renamed; renaming it here moves all its rules along.</div>
+    </div>
+
+    <div class="form-actions" id="acc-delete-bar">
+      <button class="btn-danger btn-sm" onclick="deleteAccount()">Delete account</button>
+    </div>
+  </div>
 </section>
 
-<section class="main-panel" data-main="api">
-  <div class="account-card">
-    <div id="api-status"></div>
+<!-- ======== Rules ======== -->
+<section class="section" data-sec="rules">
+  <div id="rules-list-view">
+    <div class="page-head">
+      <h1>Rules</h1>
+      <div class="btn-bar"><button class="btn-primary" onclick="openRule(null)">+ New rule</button></div>
+    </div>
+    <div class="toolbar">
+      <input id="rule-filter" placeholder="🔍 Filter by name, sender, subject…" oninput="renderRuleList()">
+      <select id="rule-account" onchange="renderRuleList()"></select>
+    </div>
+    <div id="rule-list"></div>
+    <p class="hint" style="margin-top:8px">Rules are checked from top to bottom; the first match wins. An account without rules uses the built-in rule <code>{code} is your verification code</code>.</p>
+  </div>
+
+  <div id="rules-detail-view" style="display:none">
+    <button class="back" onclick="closeRule()">← Rules</button>
+    <div class="page-head"><h1 id="rule-title">New rule</h1></div>
+    <div id="rule-editor"></div>
+  </div>
+</section>
+
+<!-- ======== Catalog ======== -->
+<section class="section" data-sec="catalog">
+  <div class="page-head"><h1>Catalog</h1></div>
+  <div class="hint" style="margin:-6px 0 12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">OTP-Scout catalog on GitHub</a>. <b>+</b> adds the rules of the selected language for all accounts, <b>▾</b> lets you pick accounts. They then appear under Rules.</div>
+  <div class="catalog-bar">
+    <input id="cat-filter" placeholder="Filter by name, e.g. Spotify" oninput="renderCatalog()">
+    <select id="cat-lang" onchange="renderCatalog()"></select>
+  </div>
+  <div class="hint" id="cat-offline" style="margin-bottom:8px"></div>
+  <div id="catalog-list"></div>
+</section>
+
+<!-- ======== API ======== -->
+<section class="section" data-sec="api">
+  <div class="page-head"><h1>API</h1></div>
+  <div class="card">
+    <div id="api-status" style="margin-bottom:10px"></div>
     <p class="hint" style="margin-bottom:14px">Local HTTP endpoint to show codes and links from outside, e.g. from a Tampermonkey script. Listens on <code>127.0.0.1</code> only; every request needs the token.</p>
     <div class="grid-2">
       <div class="form-group">
@@ -201,12 +357,12 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
       <button class="btn-sm" onclick="addAllowedLink()">+ Add link</button>
       <div class="hint">Only links starting with one of these are shown, e.g. <code>https://claude.ai/magic-link</code>. Empty list = any <code>https://</code> link is accepted.</div>
     </div>
-    <div class="form-actions" style="border:none;padding-top:0">
+    <div class="form-actions">
       <button class="btn-primary" onclick="saveApi()">Save &amp; apply</button>
     </div>
   </div>
 
-  <div class="account-card">
+  <div class="card">
     <div class="head"><h3>Endpoints</h3></div>
     <div class="info">
       <dt>Code</dt><dd><code class="mono">POST /api/otp/code</code> <span class="dim">{"code": "…", "ruleName": "…"}</span></dd>
@@ -217,9 +373,11 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
   </div>
 </section>
 
-<section class="main-panel" data-main="log">
+<!-- ======== Log ======== -->
+<section class="section" data-sec="log">
+  <div class="page-head"><h1>Log</h1></div>
   <div class="log-bar">
-    <select id="log-account" onchange="renderLog()"><option value="">All accounts</option></select>
+    <select id="log-account" onchange="renderLog()"></select>
     <select id="log-view" onchange="renderLog()"><option value="mail">Mails</option><option value="event">Technical</option></select>
     <input id="log-filter" placeholder="🔍 Filter sender, subject, rule…" oninput="renderLog()">
     <button class="btn-sm" id="log-pause" onclick="toggleLogPause()" title="Pause live updates">⏸</button>
@@ -229,111 +387,12 @@ details.tester .body { margin-top:8px; padding:10px; border-radius:8px; backgrou
   <p class="hint" style="margin-top:8px">Kept in memory only (last 500 entries), never written to disk. Mail text is not stored; codes are masked – click to reveal. Links are cut after their path.</p>
 </section>
 
-<div id="form-overlay" class="form-overlay" onclick="if(event.target===this)hideForm()">
-  <div class="form-box">
-    <h2 id="form-title">Add Account</h2>
-    <div class="tabs">
-      <button data-tab="connection" onclick="showTab('connection')">Connection</button>
-      <button data-tab="code" onclick="showTab('code')">🔢 Code rules <span class="count" id="count-code"></span></button>
-      <button data-tab="link" onclick="showTab('link')">🔗 Link rules <span class="count" id="count-link"></span></button>
-      <button data-tab="catalog" onclick="showTab('catalog')">📚 Catalog</button>
-    </div>
-    <div class="tab-body">
-    <div class="tab-panel" data-tab="connection">
-    <div class="form-group">
-      <label>Display Name</label>
-      <input id="f-label" placeholder="e.g. Gmail, Work">
-    </div>
-    <div class="grid-port">
-      <div class="form-group">
-        <label>IMAP Server</label>
-        <input id="f-server" placeholder="imap.example.com">
-      </div>
-      <div class="form-group">
-        <label>Port</label>
-        <input id="f-port" type="number" value="993">
-      </div>
-    </div>
-    <div class="grid-2">
-      <div class="form-group">
-        <label>Encryption</label>
-        <select id="f-security" onchange="onSecurityChange()">
-          <option value="ssl">SSL/TLS (port 993)</option>
-          <option value="starttls">STARTTLS (port 143)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>&nbsp;</label>
-        <label class="check"><input type="checkbox" id="f-invalid-certs"> Accept self-signed certificate</label>
-      </div>
-    </div>
-    <div class="hint" style="margin:-6px 0 12px">Proton Mail Bridge: server <code>127.0.0.1</code>, port <code>1143</code>, STARTTLS, accept self-signed certificate, and the bridge password shown in the Bridge app. Codes arrive up to ~40&nbsp;s late – the Bridge polls Proton only every 20–40&nbsp;s.</div>
-    <div class="grid-2">
-      <div class="form-group">
-        <label>Username</label>
-        <input id="f-user" placeholder="user@example.com" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label>Password <small>(system keyring)</small></label>
-        <input id="f-pass" type="password" autocomplete="new-password">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Mailbox</label>
-      <input id="f-mailbox" value="INBOX">
-    </div>
-    <div class="form-group">
-      <label>Allowed senders for all rules <small>(optional)</small></label>
-      <input id="f-sender-filter" placeholder="e.g. *@github.com, noreply@*">
-      <div class="hint">Comma-separated, <code>*</code> = any text. Empty = mails from any sender are checked.</div>
-    </div>
-    </div>
-
-    <div class="tab-panel" data-tab="code">
-      <div class="hint" style="margin-bottom:12px">Detects a <b>code</b> and shows it large for copying. The code is taken from the subject if it contains <code>{code}</code>, otherwise from the body – which is only downloaded when sender/subject already match. Rules are checked in order; the first match wins.</div>
-      <div id="rules-code"></div>
-      <button class="btn-sm" onclick="addRule('code')">+ Add code rule</button>
-    </div>
-
-    <div class="tab-panel" data-tab="link">
-      <div class="hint" style="margin-bottom:12px">Detects a <b>login link</b> (e.g. a magic link) in the body and offers it for opening. The body is only downloaded when sender/subject already match.</div>
-      <div id="rules-link"></div>
-      <button class="btn-sm" onclick="addRule('link')">+ Add link rule</button>
-    </div>
-
-    <div class="tab-panel" data-tab="catalog">
-      <div class="hint" style="margin-bottom:12px">Preconfigured rules for common services, loaded from the <a href="#" onclick="invoke('open_link',{url:CATALOG_PAGE});return false">OTP-Scout catalog on GitHub</a>. <b>+</b> adds the rules of the selected language to this account; they then appear under code or link rules and can be adjusted there.</div>
-      <div class="catalog-bar">
-        <input id="cat-filter" placeholder="Filter by name, e.g. Spotify" oninput="renderCatalog()">
-        <select id="cat-lang" onchange="renderCatalog()"></select>
-      </div>
-      <div class="hint" id="cat-offline" style="margin-bottom:8px"></div>
-      <div id="catalog-list"></div>
-    </div>
-    </div>
-
-    <div class="form-actions">
-      <button onclick="hideForm()">Cancel</button>
-      <button class="btn-primary" id="f-save-btn" onclick="saveAccount()">Save</button>
-    </div>
-  </div>
+</main>
 </div>
 
 <div id="toast"></div>
 
 <script>
-let editId = null
-let editingRules = []
-let statuses = {}
-
-const CODE_FORMATS = [
-  { id:'digits', label:'Digits (4–8)', pattern:'[0-9]{4,8}' },
-  { id:'alnum', label:'Letters, digits, dash', pattern:'[A-Za-z0-9-]{4,12}' },
-  { id:'custom', label:'Custom regex…', pattern:null },
-]
-const newRule = (kind = 'code') => ({ label:'', kind, sender:'', subject: kind === 'code' ? '{code} is your code' : '', body:'', code_pattern:'[0-9]{4,8}', link_prefix:'', enabled:true })
-const formatOf = p => (CODE_FORMATS.find(f => f.pattern === p) || CODE_FORMATS[2]).id
-
 async function invoke(cmd, args = {}) {
   const ipc = window.__TAURI_INTERNALS__ || window.__TAURI__
   if (ipc && ipc.invoke) return ipc.invoke(cmd, args)
@@ -346,68 +405,687 @@ function showToast(msg, type) {
   t.textContent = msg
   t.className = type
   t.style.display = 'block'
-  setTimeout(() => t.style.display = 'none', 3000)
+  clearTimeout(showToast.timer)
+  showToast.timer = setTimeout(() => t.style.display = 'none', 3000)
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+}
+
+async function copyText(text, msg) {
+  try { await invoke('copy_code', { code: text }); showToast(msg, 'success') }
+  catch(e) { showToast('Copy failed: ' + e, 'error') }
+}
+
+// ---- Shared state ----
+let accounts = [], rules = [], statuses = {}
+
+async function reloadData() {
+  ;[accounts, rules] = await Promise.all([invoke('get_accounts'), invoke('get_rules')])
+  ;(await invoke('get_status')).forEach(st => statuses[st.account_id] = st)
+  renderBadges()
+}
+
+const ALL = '*'
+const accountByTag = tag => accounts.find(a => a.tag === tag)
+const appliesTo = (rule, tag) => (rule.tags || []).some(t => t === ALL || t === tag)
+const rulesFor = tag => rules.filter(r => appliesTo(r, tag))
+
+function renderBadges() {
+  const states = accounts.map(a => statuses[a.id]?.state)
+  document.getElementById('dot-accounts').className = 'badge dot ' +
+    (states.includes('error') ? 'error' : states.length && states.every(s => s === 'ok') ? 'ok' : '')
+  const unassigned = rules.filter(r => !(r.tags || []).length).length
+  const badge = document.getElementById('badge-rules')
+  badge.className = unassigned ? 'badge badge-warn' : 'badge'
+  badge.textContent = unassigned || ''
+  badge.title = unassigned ? `${unassigned} rule(s) not assigned to any account` : ''
+}
+
+// ---- Navigation ----
+function go(sec) {
+  document.querySelectorAll('.nav-btn, .section').forEach(el => el.classList.toggle('on', el.dataset.sec === sec))
+  document.querySelector('.content').scrollTop = 0
+  if (sec === 'accounts') closeAccount()
+  if (sec === 'rules') closeRule()
+  if (sec === 'catalog') loadCatalog()
+  if (sec === 'api') loadApi()
+  if (sec === 'log') loadLog()
+}
+
+const currentSection = () => document.querySelector('.section.on')?.dataset.sec
+
+function tagLabel(tag) {
+  if (tag === ALL) return 'All accounts'
+  return accountByTag(tag)?.label || tag
+}
+
+function tagChips(tags) {
+  if (!(tags || []).length) return '<span class="chip warn">⚠ no account – not checked</span>'
+  return tags.map(t => {
+    const known = t === ALL || accountByTag(t)
+    return `<span class="chip${known ? '' : ' warn'}" title="${known ? esc(t) : 'No account has this tag'}">${esc(tagLabel(t))}</span>`
+  }).join('')
+}
+
+// ================= Accounts =================
+let editAccountId = null
+
+function renderStatus(id) {
+  const st = statuses[id]
+  if (!st) return '<div class="status"><span class="dot"></span><span class="msg dim">No connection attempt yet</span></div>'
+  const when = new Date(st.timestamp * 1000).toLocaleString()
+  const title = { ok:'OK', error:'Error', connecting:'Connecting' }[st.state] || st.state
+  return `<div class="status ${st.state}"><span class="dot ${st.state}"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${when}</span></div>`
+}
+
+function updateStatus(st) {
+  statuses[st.account_id] = st
+  const el = document.getElementById('status-' + st.account_id)
+  if (el) el.innerHTML = renderStatus(st.account_id)
+  renderBadges()
+}
+
+function renderAccountList() {
+  const el = document.getElementById('account-list')
+  if (!accounts.length) {
+    el.innerHTML = '<div class="empty-state">No accounts configured.<br>Click “+ Add account” to get started.</div>'
+    return
+  }
+  el.innerHTML = accounts.map(a => {
+    const n = rulesFor(a.tag).length
+    return `
+    <div class="card account-row" onclick="openAccount('${esc(a.id)}')">
+      <div>
+        <h3>${esc(a.label || a.user || '(unnamed)')}</h3>
+        <div class="meta">${esc(a.user)} · ${esc(a.server)}:${a.port} · ${esc(a.mailbox)}</div>
+      </div>
+      <div style="text-align:right">
+        <code class="mono dim" style="font-size:12px">${esc(a.tag)}</code><br>
+        <button class="link" onclick="event.stopPropagation();showRulesFor('${esc(a.tag)}')">${n ? `${n} rule${n === 1 ? '' : 's'}` : 'default rule'}</button>
+      </div>
+      <div id="status-${esc(a.id)}">${renderStatus(a.id)}</div>
+    </div>`
+  }).join('')
 }
 
 async function loadAccounts() {
   try {
-    const [accounts, sts] = await Promise.all([invoke('get_accounts'), invoke('get_status')])
-    sts.forEach(st => statuses[st.account_id] = st)
-    renderList(accounts)
-  } catch(e) {
-    showToast('Failed to load accounts: ' + e, 'error')
+    await reloadData()
+    renderAccountList()
+  } catch(e) { showToast('Failed to load accounts: ' + e, 'error') }
+}
+
+function showAccountView(detail) {
+  document.getElementById('accounts-list-view').style.display = detail ? 'none' : ''
+  document.getElementById('accounts-detail-view').style.display = detail ? '' : 'none'
+  document.querySelector('.content').scrollTop = 0
+}
+
+function openAccount(id) {
+  const a = accounts.find(x => x.id === id) || { port: 993, security: 'ssl', mailbox: 'INBOX' }
+  editAccountId = id
+  document.getElementById('acc-title').textContent = id ? (a.label || 'Edit account') : 'Add account'
+  document.getElementById('f-pass').placeholder = id ? 'Leave blank to keep existing' : 'Required'
+  document.getElementById('f-label').value = a.label || ''
+  document.getElementById('f-server').value = a.server || ''
+  document.getElementById('f-port').value = a.port
+  document.getElementById('f-security').value = a.security || 'ssl'
+  document.getElementById('f-invalid-certs').checked = !!a.allow_invalid_certs
+  document.getElementById('f-user').value = a.user || ''
+  document.getElementById('f-pass').value = ''
+  document.getElementById('f-mailbox').value = a.mailbox || 'INBOX'
+  document.getElementById('f-sender-filter').value = (a.sender_filter || []).join(', ')
+  document.getElementById('test-conn').innerHTML = ''
+  document.getElementById('acc-tag-card').style.display = id ? '' : 'none'
+  document.getElementById('acc-delete-bar').style.display = id ? '' : 'none'
+  if (id) {
+    document.getElementById('f-tag').value = a.tag
+    const n = rulesFor(a.tag).length
+    const link = document.getElementById('acc-rules-link')
+    link.textContent = n ? `Checks ${n} rule${n === 1 ? '' : 's'} →` : 'Checks the default rule →'
+    link.onclick = () => showRulesFor(a.tag)
+  }
+  showAccountView(true)
+}
+
+function closeAccount() {
+  editAccountId = null
+  showAccountView(false)
+  loadAccounts()
+}
+
+// Switch the port along with the encryption unless a custom port was entered.
+function onSecurityChange() {
+  const port = document.getElementById('f-port')
+  const sec = document.getElementById('f-security').value
+  if (sec === 'starttls' && port.value === '993') port.value = '143'
+  if (sec === 'ssl' && (port.value === '143' || port.value === '1143')) port.value = '993'
+}
+
+function accountForm() {
+  const senderRaw = document.getElementById('f-sender-filter').value
+  return {
+    id: editAccountId || crypto.randomUUID(),
+    label: document.getElementById('f-label').value,
+    server: document.getElementById('f-server').value.trim(),
+    port: parseInt(document.getElementById('f-port').value) || 993,
+    security: document.getElementById('f-security').value,
+    allow_invalid_certs: document.getElementById('f-invalid-certs').checked,
+    user: document.getElementById('f-user').value.trim(),
+    pass: document.getElementById('f-pass').value,
+    mailbox: document.getElementById('f-mailbox').value || 'INBOX',
+    sender_filter: senderRaw ? senderRaw.split(',').map(s => s.trim()).filter(s => s) : [],
   }
 }
 
-function renderList(accounts) {
-  const el = document.getElementById('account-list')
-  if (!accounts.length) {
-    el.innerHTML = '<div class="empty-state">No accounts configured.<br>Click "+ Add Account" to get started.</div>'
+async function testConnection() {
+  const el = document.getElementById('test-conn')
+  el.innerHTML = '<div class="status"><span class="dot connecting"></span><span class="msg">Connecting…</span></div>'
+  try {
+    const msg = await invoke('test_connection', { account: accountForm() })
+    el.innerHTML = `<div class="status ok"><span class="dot ok"></span><span class="msg">✓ ${esc(msg)}</span></div>`
+  } catch(e) {
+    el.innerHTML = `<div class="status error"><span class="dot error"></span><span class="msg">${esc(e)}</span></div>`
+  }
+}
+
+async function saveAccount() {
+  try {
+    await invoke(editAccountId ? 'update_account' : 'add_account', { account: accountForm() })
+    await restartImap()
+    showToast('Account saved.', 'success')
+    closeAccount()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function renameTag() {
+  const tag = document.getElementById('f-tag').value.trim()
+  try {
+    accounts = await invoke('rename_tag', { accountId: editAccountId, tag })
+    rules = await invoke('get_rules')
+    await restartImap()
+    showToast(`Tag renamed to “${tag}”.`, 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function deleteAccount() {
+  const a = accounts.find(x => x.id === editAccountId)
+  if (!confirm(`Delete the account “${a?.label}”?\nIts rules are kept; rules used only by this account are no longer checked.`)) return
+  try {
+    await invoke('remove_account', { id: editAccountId })
+    await restartImap()
+    showToast('Account deleted.', 'success')
+    closeAccount()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function restartImap() {
+  try { await invoke('restart_imap') } catch(e) {}
+}
+
+// ================= Rules =================
+let editRule = null
+let testSample = { from: '', subject: '', body: '' }
+
+const CODE_FORMATS = [
+  { id:'digits', label:'Digits (4–8)', pattern:'[0-9]{4,8}' },
+  { id:'alnum', label:'Letters, digits, dash', pattern:'[A-Za-z0-9-]{4,12}' },
+  { id:'custom', label:'Custom regex…', pattern:null },
+]
+const formatOf = p => (CODE_FORMATS.find(f => f.pattern === p) || CODE_FORMATS[2]).id
+const newRule = (kind = 'code', tags = [ALL]) => ({ id:'', tags, label:'', kind, sender:'', subject: kind === 'code' ? '{code} is your code' : '',
+  body:'', code_pattern:'[0-9]{4,8}', link_prefix:'', enabled:true })
+const STAGE_LABEL = { sender: 'Sender', subject: 'Subject', body: 'Body', link: 'Body' }
+
+function cleanRule(r) {
+  return { id: r.id || '', tags: r.tags || [], catalog: r.catalog || null, label: r.label || 'Rule', kind: r.kind || 'code',
+           sender: r.sender || '', subject: r.subject || '', body: r.body || '', code_pattern: r.code_pattern || '',
+           link_prefix: r.link_prefix || '', enabled: !!r.enabled }
+}
+
+async function loadRules() {
+  try {
+    await reloadData()
+    const sel = document.getElementById('rule-account'), cur = sel.value
+    sel.innerHTML = '<option value="">All rules</option>' +
+      accounts.map(a => `<option value="${esc(a.tag)}">Checked by ${esc(a.label)}</option>`).join('')
+    sel.value = [...sel.options].some(o => o.value === cur) ? cur : ''
+    renderRuleList()
+  } catch(e) { showToast('Failed to load rules: ' + e, 'error') }
+}
+
+async function showRulesFor(tag) {
+  go('rules')
+  await loadRules()
+  document.getElementById('rule-account').value = tag
+  renderRuleList()
+}
+
+function rulePattern(r) {
+  return [r.sender, r.subject, r.kind === 'link' ? r.link_prefix : r.body].filter(x => x).join(' · ')
+}
+
+function renderRuleList() {
+  const q = document.getElementById('rule-filter').value.trim().toLowerCase()
+  const tag = document.getElementById('rule-account').value
+  const shown = rules.map((r, i) => [r, i]).filter(([r]) =>
+    (!tag || appliesTo(r, tag)) &&
+    (!q || [r.label, r.sender, r.subject, r.body, r.link_prefix].some(v => (v || '').toLowerCase().includes(q))))
+  const el = document.getElementById('rule-list')
+  if (!rules.length) {
+    el.innerHTML = '<div class="empty-state">No rules yet.<br>Add one with “+ New rule” or take rules from the Catalog.</div>'
     return
   }
-  el.innerHTML = accounts.map(a => {
-    const rules = (a.rules||[]).map(r => `<span class="chip">${r.kind === 'link' ? '🔗' : '🔢'} ${esc(r.label)}${r.enabled ? '' : ' (off)'}${(r.tags||[]).some(t => t === '*' || t !== a.tag) ? ' (shared)' : ''} · <code>${esc(r.kind === 'link' ? r.link_prefix : (r.subject || r.sender))}</code></span>`).join('') || '<span class="dim">(default rules)</span>'
-    const filter = (a.sender_filter||[]).length ? esc(a.sender_filter.join(', ')) : '<span class="dim">all senders</span>'
-    return `
-    <div class="account-card">
-      <div class="head">
-        <h3>${esc(a.label||a.user||'(unnamed)')}</h3>
-        <div class="actions">
-          <button class="btn-sm" onclick="editAccount('${a.id}')">Edit</button>
-          <button class="btn-danger btn-sm" onclick="deleteAccount('${a.id}')">Delete</button>
-        </div>
+  if (!shown.length) { el.innerHTML = '<div class="empty-state">No matching rules.</div>'; return }
+  el.innerHTML = '<div class="rule-list">' + shown.map(([r, i]) => `
+    <div class="rule-row ${r.enabled ? '' : 'off'}" onclick="openRule('${esc(r.id)}')">
+      <span>${r.kind === 'link' ? '🔗' : '🔢'}</span>
+      <span class="name">${esc(r.label)}</span>
+      <div class="ctl" onclick="event.stopPropagation()">
+        <input type="checkbox" title="Active" ${r.enabled ? 'checked' : ''} onchange="toggleRule('${esc(r.id)}', this.checked)">
+        <button class="btn-xs" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveRule('${esc(r.id)}', -1)">↑</button>
+        <button class="btn-xs" title="Move down" ${i === rules.length - 1 ? 'disabled' : ''} onclick="moveRule('${esc(r.id)}', 1)">↓</button>
       </div>
-      <div id="status-${a.id}">${renderStatus(a.id)}</div>
-      <div class="info">
-        <dt>Server</dt><dd>${esc(a.server)}:${a.port} <span class="dim">· ${a.security === 'starttls' ? 'STARTTLS' : 'SSL/TLS'}${a.allow_invalid_certs ? ', self-signed OK' : ''}</span></dd>
-        <dt>User</dt><dd>${esc(a.user)}</dd>
-        <dt>Mailbox</dt><dd>${esc(a.mailbox)}</dd>
-        <dt>Tag</dt><dd><code>${esc(a.tag)}</code></dd>
-        <dt>Sender</dt><dd>${filter}</dd>
-        <dt>Rules</dt><dd>${rules}</dd>
+      <span class="pattern">${esc(rulePattern(r))}</span>
+      <span class="tags">${tagChips(r.tags)}</span>
+    </div>`).join('') + '</div>'
+}
+
+async function toggleRule(id, enabled) {
+  const r = rules.find(x => x.id === id)
+  try { rules = await invoke('save_rule', { rule: cleanRule({ ...r, enabled }) }) }
+  catch(e) { showToast('Error: ' + e, 'error') }
+  renderRuleList()
+}
+
+async function moveRule(id, delta) {
+  try { rules = await invoke('move_rule', { id, delta }); renderRuleList() }
+  catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+function showRuleView(detail) {
+  document.getElementById('rules-list-view').style.display = detail ? 'none' : ''
+  document.getElementById('rules-detail-view').style.display = detail ? '' : 'none'
+  document.querySelector('.content').scrollTop = 0
+}
+
+// `prefill` may carry a template rule and a test sample (from the log).
+async function openRule(id, prefill = {}) {
+  if (currentSection() !== 'rules') go('rules')
+  await reloadData()
+  const r = id ? rules.find(x => x.id === id) : null
+  if (id && !r) return showToast('Rule no longer exists.', 'error')
+  editRule = JSON.parse(JSON.stringify(r || prefill.rule || newRule()))
+  testSample = prefill.sample || { from: '', subject: '', body: '' }
+  document.getElementById('rule-title').textContent = id ? (r.label || 'Edit rule') : 'New rule'
+  showRuleView(true)
+  renderRuleEditor()
+}
+
+function closeRule() {
+  editRule = null
+  showRuleView(false)
+  loadRules()
+}
+
+function setKind(kind) {
+  editRule.kind = kind
+  if (kind === 'code' && !editRule.code_pattern) editRule.code_pattern = '[0-9]{4,8}'
+  renderRuleEditor()
+}
+
+function setField(key, value) {
+  editRule[key] = value
+  runTest()
+}
+
+function setFormat(id) {
+  const f = CODE_FORMATS.find(f => f.id === id)
+  if (f.pattern) editRule.code_pattern = f.pattern
+  editRule._custom = id === 'custom'
+  renderRuleEditor()
+}
+
+function addTag(tag) {
+  if (!tag) return
+  // "All accounts" replaces single accounts and vice versa.
+  editRule.tags = tag === ALL ? [ALL] : [...editRule.tags.filter(t => t !== ALL && t !== tag), tag]
+  renderRuleEditor()
+}
+
+function removeTag(tag) {
+  editRule.tags = editRule.tags.filter(t => t !== tag)
+  renderRuleEditor()
+}
+
+function tagEditor() {
+  const tags = editRule.tags || []
+  const chips = tags.map(t => `<span class="chip${t === ALL || accountByTag(t) ? '' : ' warn'}">${esc(tagLabel(t))}<button title="Remove" onclick="removeTag('${esc(t)}')">✕</button></span>`).join('')
+  const options = [
+    ...(tags.includes(ALL) ? [] : [`<option value="${ALL}">All accounts</option>`]),
+    ...accounts.filter(a => !tags.includes(a.tag)).map(a => `<option value="${esc(a.tag)}">${esc(a.label)} (${esc(a.tag)})</option>`),
+  ]
+  return `<div class="tag-editor">${chips}${options.length
+    ? `<select onchange="addTag(this.value)"><option value="">+ Add account…</option>${options.join('')}</select>` : ''}</div>
+    ${tags.length ? '' : '<div class="hint" style="color:var(--warn)">⚠ Not assigned to any account – this rule is not checked.</div>'}`
+}
+
+function renderRuleEditor() {
+  const r = editRule
+  const isLink = r.kind === 'link'
+  const subjectHasCode = !isLink && (r.subject || '').includes('{code}')
+  const fmt = r._custom ? 'custom' : formatOf(r.code_pattern)
+  const origin = r.catalog ? `<div class="hint" style="margin-bottom:10px">From the catalog: <code>${esc(r.catalog.app)}</code> (${esc(r.catalog.lang)})</div>` : ''
+  document.getElementById('rule-editor').innerHTML = `
+  <div class="card">
+    <div class="segmented">
+      <button class="${isLink ? '' : 'on'}" onclick="setKind('code')">🔢 Code</button>
+      <button class="${isLink ? 'on' : ''}" onclick="setKind('link')">🔗 Link</button>
+    </div>
+    <div class="hint" style="margin:-8px 0 12px">${isLink
+      ? 'Detects a <b>login link</b> (e.g. a magic link) in the body and offers it for opening.'
+      : 'Detects a <b>code</b> and shows it large for copying. The body is only downloaded when sender and subject already match.'}</div>
+    ${origin}
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Name</label>
+        <input value="${esc(r.label)}" placeholder="e.g. GitHub 2FA" oninput="setField('label', this.value)">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="check"><input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="setField('enabled', this.checked)"> Active</label>
       </div>
     </div>
-  `}).join('')
+    <div class="form-group">
+      <label>Checked by</label>
+      ${tagEditor()}
+    </div>
+    <div class="form-group">
+      <label>Sender <small>(optional)</small></label>
+      <input value="${esc(r.sender)}" placeholder="e.g. noreply@github.com, *@bank.de" oninput="setField('sender', this.value)">
+      <div class="hint">Comma-separated, <code>*</code> = any text. Empty = any sender.</div>
+    </div>
+    <div class="form-group">
+      <label>Subject</label>
+      <input value="${esc(r.subject)}" placeholder="${isLink ? 'Secure link to log in*' : '{code} is your code'}" oninput="setField('subject', this.value)" onchange="renderRuleEditor()">
+      <div class="hint">${isLink
+        ? 'Write the subject as it arrives, <code>*</code> for changing text. Case is ignored. Empty = any subject (then a sender is required).'
+        : 'Write the subject as it arrives, put <code>{code}</code> where the code is and <code>*</code> for changing text. Case is ignored. Without <code>{code}</code> the code is read from the body.'}</div>
+    </div>
+    ${isLink ? `
+    <div class="form-group">
+      <label>Link starts with</label>
+      <input class="mono" value="${esc(r.link_prefix)}" placeholder="https://claude.ai/magic-link" oninput="setField('link_prefix', this.value)">
+      <div class="hint">The first link in the mail body starting with this text is offered for opening. Be specific (domain and path) – only matching links are ever opened.</div>
+    </div>` : ''}
+    ${isLink || subjectHasCode ? '' : `
+    <div class="form-group">
+      <label>Body <small>(code is read from the mail text)</small></label>
+      <input value="${esc(r.body)}" placeholder="Your verification code is {code}" oninput="setField('body', this.value)">
+      <div class="hint">Text around the code, with <code>{code}</code>. Line breaks don't matter. Empty = first code-like word in the body.</div>
+    </div>`}
+    ${isLink ? '' : `
+    <div class="form-group">
+      <label>Code format</label>
+      <div class="grid-code">
+        <select onchange="setFormat(this.value)">
+          ${CODE_FORMATS.map(f => `<option value="${f.id}" ${f.id === fmt ? 'selected' : ''}>${f.label}</option>`).join('')}
+        </select>
+        ${fmt === 'custom'
+          ? `<input class="mono" value="${esc(r.code_pattern)}" placeholder="[0-9]{6}" oninput="setField('code_pattern', this.value)">`
+          : `<div class="hint mono" style="align-self:center">${esc(r.code_pattern)}</div>`}
+      </div>
+    </div>`}
+
+    <div class="tester">
+      <h4>Test with a sample mail</h4>
+      <div class="grid-2">
+        <div class="form-group"><label>From</label><input value="${esc(testSample.from)}" placeholder="noreply@example.com" oninput="testSample.from=this.value;runTest()"></div>
+        <div class="form-group"><label>Subject</label><input value="${esc(testSample.subject)}" placeholder="123456 is your code" oninput="testSample.subject=this.value;runTest()"></div>
+      </div>
+      <div class="form-group"><label>Body</label><textarea rows="3" oninput="testSample.body=this.value;runTest()">${esc(testSample.body)}</textarea></div>
+      <div class="test-result" id="test-result">Enter a sample mail.</div>
+      <div class="stages" id="test-stages"></div>
+    </div>
+
+    <div class="form-actions">
+      ${r.id ? '<button class="btn-danger btn-sm left" onclick="deleteRule()">Delete</button>' : ''}
+      <button onclick="closeRule()">Cancel</button>
+      <button class="btn-primary" onclick="saveRule()">Save</button>
+    </div>
+  </div>`
+  runTest()
 }
 
-// ---- API tab ----
+async function runTest() {
+  const el = document.getElementById('test-result'), stagesEl = document.getElementById('test-stages')
+  if (!el) return
+  const { from, subject, body } = testSample
+  stagesEl.innerHTML = ''
+  if (!from && !subject && !body) { el.className = 'test-result'; el.textContent = 'Enter a sample mail.'; return }
+  try {
+    const trace = await invoke('test_rule', { rule: cleanRule(editRule), from, subject, body })
+    const failed = trace.stages.find(s => !s.ok)
+    el.className = 'test-result ' + (trace.value ? 'ok' : 'err')
+    el.textContent = trace.value
+      ? `✓ ${editRule.kind === 'link' ? 'Link' : 'Code'} found: ${trace.value}`
+      : `✗ No match – ${failed ? `${STAGE_LABEL[failed.stage]} ${failed.detail}` : 'nothing found'}`
+    stagesEl.innerHTML = traceStages(trace)
+  } catch(e) {
+    el.className = 'test-result err'
+    el.textContent = '⚠ ' + e
+  }
+}
+
+function traceStages(t) {
+  return t.stages.map(s => `<div class="stage ${s.ok ? 'ok' : 'fail'}"><span>${s.ok ? '✓' : '✗'}</span><span>${esc(STAGE_LABEL[s.stage])}</span><span>${esc(s.detail)}</span></div>`).join('')
+}
+
+async function saveRule() {
+  try {
+    rules = await invoke('save_rule', { rule: cleanRule(editRule) })
+    showToast('Rule saved – active from the next mail check.', 'success')
+    closeRule()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function deleteRule() {
+  if (!confirm(`Delete the rule “${editRule.label}”?`)) return
+  try {
+    rules = await invoke('delete_rule', { id: editRule.id })
+    showToast('Rule deleted.', 'success')
+    closeRule()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+// ================= Catalog =================
+let catalog = null, catalogPick = null
+const CATALOG_PAGE = 'https://github.com/Skrrytch/otp-scout/tree/main/catalog'
+const KIND_LABEL = { code:'🔢 Code', link:'🔗 Link' }
+const sameRule = (a, b) => a.kind === b.kind && a.sender === b.sender && a.subject === b.subject && a.link_prefix === b.link_prefix
+
+async function loadCatalog() {
+  await reloadData().catch(() => {})
+  if (!catalog) {
+    const list = document.getElementById('catalog-list')
+    list.innerHTML = '<div class="empty-state">Loading catalog from GitHub…</div>'
+    let loaded
+    try { loaded = await invoke('get_catalog') }
+    catch(e) { list.innerHTML = `<div class="empty-state">⚠ ${esc(e)}</div>`; return }
+    catalog = loaded.catalog
+    document.getElementById('cat-offline').innerHTML = loaded.offline_reason
+      ? `⚠ GitHub not reachable – showing the last downloaded catalog. <span class="dim">(${esc(loaded.offline_reason)})</span>` : ''
+    const sel = document.getElementById('cat-lang')
+    const preferred = (navigator.language || 'en').slice(0, 2)
+    sel.innerHTML = catalog.languages.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')
+    sel.value = catalog.languages.some(l => l.id === preferred) ? preferred : catalog.languages[0].id
+  }
+  renderCatalog()
+}
+
+function renderCatalog() {
+  if (!catalog) return
+  const lang = document.getElementById('cat-lang').value
+  const filter = document.getElementById('cat-filter').value.trim().toLowerCase()
+  const groups = catalog.categories.map(cat => {
+    const apps = cat.apps.filter(a => a.variants[lang] && a.name.toLowerCase().includes(filter))
+    if (!apps.length) return ''
+    return `<div class="cat-group"><h4>${esc(cat.name[lang] || cat.id)}</h4>${apps.map(a => {
+      const variant = a.variants[lang]
+      const kinds = [...new Set(variant.map(r => r.kind))].map(k => `<span class="kind-badge">${KIND_LABEL[k]}</span>`).join('')
+      const added = variant.every(r => rules.some(e => sameRule(e, r)))
+      const unverified = (a.unverified || []).includes(lang)
+        ? '<span class="unverified-badge" title="Not yet checked against a real mail – please test before relying on it">unverified</span>' : ''
+      const key = `${cat.id}/${a.id}`
+      const add = `addCatalogApp('${esc(cat.id)}','${esc(a.id)}'`
+      const pick = catalogPick === key ? `
+        <div class="cat-pick">
+          <span class="dim" style="font-size:12.5px">Check with:</span>
+          ${accounts.map(acc => `<label><input type="checkbox" value="${esc(acc.tag)}" checked> ${esc(acc.label)}</label>`).join('')}
+          <button class="btn-primary btn-sm" onclick="${add}, [...this.parentElement.querySelectorAll('input:checked')].map(i => i.value))">Add</button>
+        </div>` : ''
+      const buttons = added ? '<span class="added">✓ added</span>' : `
+        <button class="btn-primary btn-add" title="Add for all accounts" onclick="${add}, ['${ALL}'])">+</button>
+        ${accounts.length > 1 ? `<button class="btn-add-more" title="Choose accounts" onclick="toggleCatalogPick('${esc(key)}')">▾</button>` : ''}`
+      return `<div class="cat-app"><span class="name">${esc(a.name)}</span>${unverified}${kinds}${buttons}${added ? '' : pick}</div>`
+    }).join('')}</div>`
+  }).join('')
+  document.getElementById('catalog-list').innerHTML = groups || '<div class="empty-state">No matching services.</div>'
+}
+
+function toggleCatalogPick(key) {
+  catalogPick = catalogPick === key ? null : key
+  renderCatalog()
+}
+
+async function addCatalogApp(catId, appId, tags) {
+  if (!tags.length) return showToast('Choose at least one account.', 'error')
+  const lang = document.getElementById('cat-lang').value
+  const app = catalog.categories.find(c => c.id === catId).apps.find(a => a.id === appId)
+  const langName = catalog.languages.find(l => l.id === lang).name
+  try {
+    for (const r of app.variants[lang]) {
+      if (rules.some(e => sameRule(e, r))) continue
+      rules = await invoke('save_rule', { rule: cleanRule({ ...r, id: '', tags, label: `${app.name} (${langName})`, enabled: true, catalog: { app: app.id, lang } }) })
+    }
+    catalogPick = null
+    renderBadges()
+    renderCatalog()
+    showToast(`${app.name} added to Rules.`, 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+// ================= API =================
 let apiToken = '', apiPort = 6870, allowedLinks = []
 
-function showMainTab(name) {
-  document.querySelectorAll('.main-tabs button, .main-panel').forEach(el => el.classList.toggle('on', el.dataset.main === name))
-  document.querySelector('.btn-bar').style.visibility = name === 'accounts' ? 'visible' : 'hidden'
-  if (name === 'api') loadApi()
-  if (name === 'log') loadLog()
+async function loadApi() {
+  try {
+    const st = await invoke('get_api_settings')
+    apiToken = st.token
+    apiPort = st.config.port
+    allowedLinks = [...(st.config.allowed_links || [])]
+    document.getElementById('api-enabled').checked = st.config.enabled
+    document.getElementById('api-port').value = st.config.port
+    document.getElementById('api-token').value = apiToken
+    renderAllowedLinks()
+    renderApiStatus(st.status)
+    renderExample()
+  } catch(e) { showToast('Failed to load API settings: ' + e, 'error') }
 }
 
-// ---- Log tab ----
+function renderApiStatus(st) {
+  if (!st) return
+  document.getElementById('api-dot').className = 'badge dot ' + st.state
+  const cls = { listening:'ok', error:'error', off:'' }[st.state] || ''
+  const title = { listening:'Running', error:'Error', off:'Off' }[st.state] || st.state
+  const last = st.last_request ? `Last request ${new Date(st.last_request * 1000).toLocaleString()}` : ''
+  document.getElementById('api-status').innerHTML =
+    `<div class="status ${cls}"><span class="dot ${st.state}"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${last}</span></div>`
+}
+
+function renderAllowedLinks() {
+  document.getElementById('api-links').innerHTML = allowedLinks.map((l, i) => `
+    <div class="link-row">
+      <input class="mono" value="${esc(l)}" placeholder="https://claude.ai/magic-link" oninput="allowedLinks[${i}]=this.value">
+      <button class="btn-danger btn-xs" title="Remove" onclick="allowedLinks.splice(${i},1);renderAllowedLinks()">✕</button>
+    </div>`).join('')
+}
+
+function addAllowedLink() {
+  allowedLinks.push('https://')
+  renderAllowedLinks()
+  const inputs = document.querySelectorAll('#api-links input')
+  inputs[inputs.length - 1].focus()
+}
+
+async function saveApi() {
+  const api = {
+    enabled: document.getElementById('api-enabled').checked,
+    port: parseInt(document.getElementById('api-port').value) || 6870,
+    allowed_links: allowedLinks.map(l => l.trim()).filter(l => l && l !== 'https://'),
+  }
+  try {
+    await invoke('set_api_settings', { api })
+    await loadApi()
+    showToast('API settings saved.', 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function regenerateToken() {
+  if (!confirm('Generate a new token? Scripts using the old token stop working.')) return
+  try {
+    apiToken = await invoke('regenerate_api_token')
+    document.getElementById('api-token').value = apiToken
+    renderExample()
+    showToast('New token generated.', 'success')
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+function toggleToken() {
+  const input = document.getElementById('api-token'), btn = document.getElementById('api-token-show')
+  const show = input.type === 'password'
+  input.type = show ? 'text' : 'password'
+  btn.textContent = show ? 'Hide' : 'Show'
+}
+
+function renderExample() {
+  document.getElementById('api-example').textContent =
+`// ==UserScript==
+// @name         OTP-Scout bridge
+// @match        https://example.com/*
+// @grant        GM_xmlhttpRequest
+// @connect      127.0.0.1
+// ==/UserScript==
+
+function otpScout(kind, value, ruleName) {
+  GM_xmlhttpRequest({
+    method: 'POST',
+    url: 'http://127.0.0.1:${apiPort}/api/otp/' + kind,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-OTP-Scout-Token': '${apiToken}',
+    },
+    data: JSON.stringify(kind === 'code'
+      ? { code: value, ruleName }
+      : { link: value, ruleName }),
+    onload: r => console.log('OTP-Scout:', r.status, r.responseText),
+  })
+}
+
+// otpScout('code', '123456', 'My site')
+// otpScout('link', 'https://example.com/login?token=…', 'My site')`
+}
+
+// ================= Log =================
 let logEntries = [], logPaused = false, logPending = [], logOpen = null
 const revealed = new Set()
 const SYM = { found:'✓', partial:'⚠', no_match:'✗', filtered:'⊘' }
 
 async function loadLog() {
   try {
-    const [entries, accounts] = await Promise.all([invoke('get_log'), invoke('get_accounts')])
+    const [entries] = await Promise.all([invoke('get_log'), reloadData()])
     logEntries = entries.reverse()
     const sel = document.getElementById('log-account'), cur = sel.value
     sel.innerHTML = '<option value="">All accounts</option>' + accounts.map(a => `<option value="${esc(a.id)}">${esc(a.label)}</option>`).join('')
@@ -420,7 +1098,7 @@ function onLogEntry(entry) {
   if (logPaused) { logPending.unshift(entry); renderLogPaused(); return }
   logEntries.unshift(entry)
   if (logEntries.length > 500) logEntries.pop()
-  if (document.querySelector('.main-panel.on')?.dataset.main === 'log') renderLog()
+  if (currentSection() === 'log') renderLog()
 }
 
 function toggleLogPause() {
@@ -488,7 +1166,7 @@ function renderLog() {
   const paused = logPaused ? '<div class="log-paused" id="log-paused"></div>' : ''
   document.getElementById('log-list').innerHTML = paused + (rows.length
     ? rows.map(e => e.type === 'mail' ? mailRow(e) : eventRow(e)).join('')
-    : `<div class="empty-rules" style="margin:12px">${view === 'mail' ? 'No mails checked yet.' : 'No connection events yet.'}</div>`)
+    : `<div class="empty-state" style="border:none">${view === 'mail' ? 'No mails checked yet.' : 'No connection events yet.'}</div>`)
   renderLogPaused()
 }
 
@@ -515,44 +1193,27 @@ function mailDetail(e) {
   // Rules failing at the sender are noise unless nothing else was checked.
   const relevant = e.traces.filter(t => t.stages.length > 1 || t.stages[0]?.ok)
   const hidden = e.traces.length - relevant.length
-  const traces = relevant.map(t => `<div class="trace"><div class="name">${esc(t.rule)}</div>${t.stages.map(s =>
-    `<div class="stage ${s.ok ? 'ok' : 'fail'}"><span>${s.ok ? '✓' : '✗'}</span><span>${esc(STAGE_LABEL[s.stage])}</span><span>${esc(s.detail)}</span></div>`).join('')}</div>`).join('')
+  const traces = relevant.map(t => `<div class="trace"><div class="name">${esc(t.rule)}</div>${traceStages(t)}</div>`).join('')
   const t = e.timings
   const rule = decisive(e)
   return `<div class="log-detail" onclick="event.stopPropagation()">
-    ${traces || ''}
+    ${traces}
     ${hidden ? `<div class="trace-more">${hidden} rule${hidden === 1 ? '' : 's'} with another sender not shown.</div>` : ''}
     <div class="hint">After the server reported the mail: headers ${t.headers} ms${t.body != null ? ` · body ${t.body} ms` : ''} · done ${t.done} ms</div>
     <div class="log-actions">
-      ${rule && rule.rule_id ? `<button class="btn-sm" onclick="editRuleFromLog('${esc(e.account_id)}','${esc(rule.rule_id)}')">Edit rule</button>` : ''}
+      ${rule && rule.rule_id ? `<button class="btn-sm" onclick="openRule('${esc(rule.rule_id)}')">Edit rule</button>` : ''}
       <button class="btn-sm" onclick="newRuleFromLog(${e.seq})">New rule from this mail</button>
       <button class="btn-sm" onclick="copyLogEntry(${e.seq})">Copy</button>
     </div>
   </div>`
 }
 
-async function editRuleFromLog(accountId, ruleId) {
-  await editAccount(accountId)
-  const i = editingRules.findIndex(r => r.id === ruleId)
-  if (i < 0) return showToast('Rule no longer exists.', 'error')
-  const kind = editingRules[i].kind || 'code'
-  showTab(kind)
-  const pos = editingRules.slice(0, i).filter(r => (r.kind || 'code') === kind).length
-  const card = document.querySelectorAll(`#rules-${kind} .rule-card`)[pos]
-  if (card) { card.scrollIntoView({ block:'center' }); card.classList.add('flash') }
-}
-
-async function newRuleFromLog(seq) {
+function newRuleFromLog(seq) {
   const e = logEntries.find(x => x.seq === seq)
-  await editAccount(e.account_id)
   const domain = (e.from || '').split('@')[1]
-  editingRules.push({ ...newRule('code'), label: domain || 'New rule', sender: domain ? `*@${domain}` : '',
-                      subject: e.subject || '', _tFrom: e.from || '', _tSubject: e.subject || '', _testOpen: true })
-  showTab('code')
-  renderRules()
-  const cards = document.querySelectorAll('#rules-code .rule-card')
-  cards[cards.length - 1]?.scrollIntoView({ block:'nearest' })
-  runTest(editingRules.length - 1)
+  const tag = accounts.find(a => a.id === e.account_id)?.tag
+  const rule = { ...newRule('code', tag ? [tag] : [ALL]), label: domain || 'New rule', sender: domain ? `*@${domain}` : '', subject: e.subject || '' }
+  openRule(null, { rule, sample: { from: e.from || '', subject: e.subject || '', body: '' } })
   showToast('Mark the code in the subject with {code}, or describe it in the body.', 'success')
 }
 
@@ -568,426 +1229,7 @@ function copyLogEntry(seq) {
   copyText(lines.join('\n'), 'Entry copied')
 }
 
-async function loadApi() {
-  try {
-    const st = await invoke('get_api_settings')
-    apiToken = st.token
-    apiPort = st.config.port
-    allowedLinks = [...(st.config.allowed_links || [])]
-    document.getElementById('api-enabled').checked = st.config.enabled
-    document.getElementById('api-port').value = st.config.port
-    document.getElementById('api-token').value = apiToken
-    renderAllowedLinks()
-    renderApiStatus(st.status)
-    renderExample()
-  } catch(e) { showToast('Failed to load API settings: ' + e, 'error') }
-}
-
-function renderApiStatus(st) {
-  if (!st) return
-  document.getElementById('api-dot').className = 'api-dot ' + st.state
-  const el = document.getElementById('api-status')
-  if (!el) return
-  const cls = { listening:'ok', error:'error', off:'' }[st.state] || ''
-  const title = { listening:'Running', error:'Error', off:'Off' }[st.state] || st.state
-  const last = st.last_request ? `Last request ${new Date(st.last_request * 1000).toLocaleString()}` : ''
-  el.innerHTML = `<div class="status ${cls}"><span class="dot"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${last}</span></div>`
-}
-
-function renderAllowedLinks() {
-  document.getElementById('api-links').innerHTML = allowedLinks.map((l, i) => `
-    <div class="link-row">
-      <input class="mono" value="${esc(l)}" placeholder="https://claude.ai/magic-link" oninput="allowedLinks[${i}]=this.value">
-      <button class="btn-danger btn-xs" title="Remove" onclick="allowedLinks.splice(${i},1);renderAllowedLinks()">✕</button>
-    </div>`).join('')
-}
-
-function addAllowedLink() {
-  allowedLinks.push('https://')
-  renderAllowedLinks()
-  const inputs = document.querySelectorAll('#api-links input')
-  inputs[inputs.length - 1].focus()
-}
-
-async function saveApi() {
-  const api = {
-    enabled: document.getElementById('api-enabled').checked,
-    port: parseInt(document.getElementById('api-port').value) || 6870,
-    allowed_links: allowedLinks.map(l => l.trim()).filter(l => l && l !== 'https://'),
-  }
-  try {
-    await invoke('set_api_settings', { api })
-    await loadApi()
-    showToast('API settings saved.', 'success')
-  } catch(e) { showToast('Error: ' + e, 'error') }
-}
-
-async function regenerateToken() {
-  if (!confirm('Generate a new token? Scripts using the old token stop working.')) return
-  try {
-    apiToken = await invoke('regenerate_api_token')
-    document.getElementById('api-token').value = apiToken
-    renderExample()
-    showToast('New token generated.', 'success')
-  } catch(e) { showToast('Error: ' + e, 'error') }
-}
-
-function toggleToken() {
-  const input = document.getElementById('api-token'), btn = document.getElementById('api-token-show')
-  const show = input.type === 'password'
-  input.type = show ? 'text' : 'password'
-  btn.textContent = show ? 'Hide' : 'Show'
-}
-
-async function copyText(text, msg) {
-  try { await invoke('copy_code', { code: text }); showToast(msg, 'success') }
-  catch(e) { showToast('Copy failed: ' + e, 'error') }
-}
-
-function renderExample() {
-  document.getElementById('api-example').textContent =
-`// ==UserScript==
-// @name         OTP-Scout bridge
-// @match        https://example.com/*
-// @grant        GM_xmlhttpRequest
-// @connect      127.0.0.1
-// ==/UserScript==
-
-function otpScout(kind, value, ruleName) {
-  GM_xmlhttpRequest({
-    method: 'POST',
-    url: 'http://127.0.0.1:${apiPort}/api/otp/' + kind,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-OTP-Scout-Token': '${apiToken}',
-    },
-    data: JSON.stringify(kind === 'code'
-      ? { code: value, ruleName }
-      : { link: value, ruleName }),
-    onload: r => console.log('OTP-Scout:', r.status, r.responseText),
-  })
-}
-
-// otpScout('code', '123456', 'My site')
-// otpScout('link', 'https://example.com/login?token=…', 'My site')`
-}
-
-function renderStatus(id) {
-  const st = statuses[id]
-  if (!st) return '<div class="status"><span class="dot"></span><span class="msg dim">No connection attempt yet</span></div>'
-  const when = new Date(st.timestamp * 1000).toLocaleString()
-  const title = { ok:'OK', error:'Error', connecting:'Connecting' }[st.state] || st.state
-  return `<div class="status ${st.state}"><span class="dot"></span><span class="msg"><b>${title}:</b> ${esc(st.message)}</span><span class="when">${when}</span></div>`
-}
-
-function updateStatus(st) {
-  statuses[st.account_id] = st
-  const el = document.getElementById('status-' + st.account_id)
-  if (el) el.innerHTML = renderStatus(st.account_id)
-}
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-}
-
-function showForm() {
-  editId = null
-  editingRules = []
-  showTab('connection')
-  document.getElementById('form-title').textContent = 'Add Account'
-  document.getElementById('f-pass').placeholder = 'Required'
-  document.getElementById('f-label').value = ''
-  document.getElementById('f-server').value = ''
-  document.getElementById('f-port').value = '993'
-  document.getElementById('f-security').value = 'ssl'
-  document.getElementById('f-invalid-certs').checked = false
-  document.getElementById('f-user').value = ''
-  document.getElementById('f-pass').value = ''
-  document.getElementById('f-mailbox').value = 'INBOX'
-  document.getElementById('f-sender-filter').value = ''
-  renderRules()
-  document.getElementById('form-overlay').classList.add('active')
-}
-
-function hideForm() {
-  editId = null
-  document.getElementById('form-overlay').classList.remove('active')
-}
-
-async function editAccount(id) {
-  const accounts = await invoke('get_accounts')
-  const a = accounts.find(x => x.id === id)
-  if (!a) return
-  editId = id
-  editingRules = JSON.parse(JSON.stringify(a.rules || []))
-  showTab('connection')
-  document.getElementById('form-title').textContent = 'Edit Account'
-  document.getElementById('f-pass').placeholder = 'Leave blank to keep existing'
-  document.getElementById('f-label').value = a.label || ''
-  document.getElementById('f-server').value = a.server || ''
-  document.getElementById('f-port').value = a.port
-  document.getElementById('f-security').value = a.security || 'ssl'
-  document.getElementById('f-invalid-certs').checked = !!a.allow_invalid_certs
-  document.getElementById('f-user').value = a.user || ''
-  document.getElementById('f-pass').value = ''
-  document.getElementById('f-mailbox').value = a.mailbox || 'INBOX'
-  document.getElementById('f-sender-filter').value = (a.sender_filter||[]).join(', ')
-  renderRules()
-  document.getElementById('form-overlay').classList.add('active')
-}
-
-// Switch the port along with the encryption unless a custom port was entered.
-function onSecurityChange() {
-  const port = document.getElementById('f-port')
-  const sec = document.getElementById('f-security').value
-  if (sec === 'starttls' && port.value === '993') port.value = '143'
-  if (sec === 'ssl' && (port.value === '143' || port.value === '1143')) port.value = '993'
-}
-
-function showTab(name) {
-  document.querySelectorAll('.form-box .tabs button, .tab-panel').forEach(el => el.classList.toggle('on', el.dataset.tab === name))
-  document.querySelector('.tab-body').scrollTop = 0
-  if (name === 'catalog') loadCatalog()
-}
-
-// ---- Catalog tab ----
-let catalog = null
-const CATALOG_PAGE = 'https://github.com/Skrrytch/otp-scout/tree/main/catalog'
-
-async function loadCatalog() {
-  if (!catalog) {
-    const list = document.getElementById('catalog-list')
-    list.innerHTML = '<div class="empty-rules">Loading catalog from GitHub…</div>'
-    let loaded
-    try { loaded = await invoke('get_catalog') }
-    catch(e) { list.innerHTML = `<div class="empty-rules">⚠ ${esc(e)}</div>`; return }
-    catalog = loaded.catalog
-    document.getElementById('cat-offline').innerHTML = loaded.offline_reason
-      ? `⚠ GitHub not reachable – showing the last downloaded catalog. <span class="dim">(${esc(loaded.offline_reason)})</span>` : ''
-    const sel = document.getElementById('cat-lang')
-    const preferred = (navigator.language || 'en').slice(0, 2)
-    sel.innerHTML = catalog.languages.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')
-    sel.value = catalog.languages.some(l => l.id === preferred) ? preferred : catalog.languages[0].id
-  }
-  renderCatalog()
-}
-
-const KIND_LABEL = { code:'🔢 Code', link:'🔗 Link' }
-const sameRule = (a, b) => a.kind === b.kind && a.sender === b.sender && a.subject === b.subject && a.link_prefix === b.link_prefix
-
-function renderCatalog() {
-  if (!catalog) return
-  const lang = document.getElementById('cat-lang').value
-  const filter = document.getElementById('cat-filter').value.trim().toLowerCase()
-  const groups = catalog.categories.map(cat => {
-    const apps = cat.apps.filter(a => a.variants[lang] && a.name.toLowerCase().includes(filter))
-    if (!apps.length) return ''
-    return `<div class="cat-group"><h4>${esc(cat.name[lang] || cat.id)}</h4>${apps.map(a => {
-      const rules = a.variants[lang]
-      const kinds = [...new Set(rules.map(r => r.kind))].map(k => `<span class="kind-badge">${KIND_LABEL[k]}</span>`).join('')
-      const added = rules.every(r => editingRules.some(e => sameRule(e, r)))
-      const unverified = (a.unverified || []).includes(lang)
-        ? '<span class="unverified-badge" title="Not yet checked against a real mail – please test before relying on it">unverified</span>' : ''
-      return `<div class="cat-app"><span class="name">${esc(a.name)}</span>${unverified}${kinds}
-        ${added ? '<span class="added">✓ added</span>'
-                : `<button class="btn-primary btn-add" title="Add rule" onclick="addCatalogApp('${esc(cat.id)}','${esc(a.id)}')">+</button>`}</div>`
-    }).join('')}</div>`
-  }).join('')
-  document.getElementById('catalog-list').innerHTML = groups || '<div class="empty-rules">No matching services.</div>'
-}
-
-function addCatalogApp(catId, appId) {
-  const lang = document.getElementById('cat-lang').value
-  const app = catalog.categories.find(c => c.id === catId).apps.find(a => a.id === appId)
-  const langName = catalog.languages.find(l => l.id === lang).name
-  for (const r of app.variants[lang]) {
-    if (!editingRules.some(e => sameRule(e, r))) editingRules.push({ ...r, label: `${app.name} (${langName})`, enabled: true, catalog: { app: app.id, lang } })
-  }
-  renderRules()
-  renderCatalog()
-  showToast(`${app.name} added – click Save to apply.`, 'success')
-}
-
-function addRule(kind) {
-  editingRules.push(newRule(kind))
-  renderRules()
-  const cards = document.querySelectorAll(`#rules-${kind} .rule-card`)
-  if (cards.length) cards[cards.length - 1].scrollIntoView({ block:'nearest' })
-}
-
-function removeRule(idx) {
-  editingRules.splice(idx, 1)
-  renderRules()
-}
-
-function setRule(i, key, value, rerender) {
-  editingRules[i][key] = value
-  if (rerender) renderRules()
-  else runTest(i)
-}
-
-function setFormat(i, id) {
-  const f = CODE_FORMATS.find(f => f.id === id)
-  if (f.pattern) editingRules[i].code_pattern = f.pattern
-  editingRules[i]._custom = id === 'custom'
-  renderRules()
-}
-
-const EMPTY_RULES = {
-  code: () => editingRules.length
-    ? 'No code rules.'
-    : 'No rules – the built-in default rule <code>{code} is your verification code</code> is used.',
-  link: () => 'No link rules.',
-}
-
-function renderRules() {
-  for (const kind of ['code', 'link']) {
-    const rules = editingRules.map((r, i) => [r, i]).filter(([r]) => (r.kind || 'code') === kind)
-    document.getElementById('count-' + kind).textContent = rules.length || ''
-    document.getElementById('rules-' + kind).innerHTML = rules.length
-      ? rules.map(([r, i]) => ruleCard(r, i)).join('')
-      : `<div class="empty-rules">${EMPTY_RULES[kind]()}</div>`
-  }
-  editingRules.forEach((_, i) => runTest(i))
-}
-
-function ruleCard(r, i) {
-  {
-    const isLink = r.kind === 'link'
-    const subjectHasCode = !isLink && (r.subject||'').includes('{code}')
-    const fmt = r._custom ? 'custom' : formatOf(r.code_pattern)
-    return `
-    <div class="rule-card ${r.enabled ? '' : 'disabled'}">
-      <div class="rule-top">
-        <input type="text" value="${esc(r.label||'')}" placeholder="Rule name, e.g. GitHub 2FA" oninput="setRule(${i},'label',this.value)">
-        <label><input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="setRule(${i},'enabled',this.checked,true)"> active</label>
-        <button class="btn-danger btn-xs" title="Remove rule" onclick="removeRule(${i})">✕</button>
-      </div>
-      <div class="form-group">
-        <label>Sender <small>(optional)</small></label>
-        <input value="${esc(r.sender||'')}" placeholder="e.g. noreply@github.com, *@bank.de" oninput="setRule(${i},'sender',this.value)">
-        <div class="hint">Comma-separated, <code>*</code> = any text. Empty = any sender.</div>
-      </div>
-      <div class="form-group">
-        <label>Subject</label>
-        <input value="${esc(r.subject||'')}" placeholder="${isLink ? 'Secure link to log in*' : '{code} is your code'}" oninput="setRule(${i},'subject',this.value)" onchange="renderRules()">
-        <div class="hint">${isLink
-          ? 'Write the subject as it arrives, <code>*</code> for changing text. Case is ignored. Empty = any subject (then a sender is required).'
-          : 'Write the subject as it arrives, put <code>{code}</code> where the code is and <code>*</code> for changing text. Case is ignored. Without <code>{code}</code> the code is read from the body.'}</div>
-      </div>
-      ${isLink ? `
-      <div class="form-group">
-        <label>Link starts with</label>
-        <input class="mono" value="${esc(r.link_prefix||'')}" placeholder="https://claude.ai/magic-link" oninput="setRule(${i},'link_prefix',this.value)">
-        <div class="hint">The first link in the mail body starting with this text is offered for opening. Be specific (domain and path) – only matching links are ever opened.</div>
-      </div>` : ''}
-      ${isLink || subjectHasCode ? '' : `
-      <div class="form-group">
-        <label>Body <small>(code is read from the mail text)</small></label>
-        <input value="${esc(r.body||'')}" placeholder="Your verification code is {code}" oninput="setRule(${i},'body',this.value)">
-        <div class="hint">Text around the code, with <code>{code}</code>. Line breaks don't matter. Empty = first code-like word in the body.</div>
-      </div>`}
-      ${isLink ? '' : `<div class="form-group">
-        <label>Code format</label>
-        <div class="grid-code">
-          <select onchange="setFormat(${i},this.value)">
-            ${CODE_FORMATS.map(f => `<option value="${f.id}" ${f.id===fmt?'selected':''}>${f.label}</option>`).join('')}
-          </select>
-          ${fmt === 'custom'
-            ? `<input class="mono" value="${esc(r.code_pattern||'')}" placeholder="[0-9]{6}" oninput="setRule(${i},'code_pattern',this.value)">`
-            : `<div class="hint mono" style="align-self:center">${esc(r.code_pattern)}</div>`}
-        </div>
-      </div>`}
-      <details class="tester" ${r._testOpen ? 'open' : ''} ontoggle="editingRules[${i}]._testOpen=this.open">
-        <summary>Test this rule</summary>
-        <div class="body">
-          <div class="grid-2">
-            <div class="form-group"><label>From</label><input value="${esc(r._tFrom||'')}" placeholder="noreply@example.com" oninput="editingRules[${i}]._tFrom=this.value;runTest(${i})"></div>
-            <div class="form-group"><label>Subject</label><input value="${esc(r._tSubject||'')}" placeholder="123456 is your code" oninput="editingRules[${i}]._tSubject=this.value;runTest(${i})"></div>
-          </div>
-          <div class="form-group"><label>Body</label><textarea rows="3" oninput="editingRules[${i}]._tBody=this.value;runTest(${i})">${esc(r._tBody||'')}</textarea></div>
-          <div class="test-result" id="test-${i}">Enter a sample mail.</div>
-        </div>
-      </details>
-    </div>`
-  }
-}
-
-function cleanRule(r) {
-  return { id: r.id || '', tags: r.tags || [], catalog: r.catalog || null, label: r.label || 'Rule', kind: r.kind || 'code', sender: r.sender || '', subject: r.subject || '',
-           body: r.body || '', code_pattern: r.code_pattern || '', link_prefix: r.link_prefix || '', enabled: !!r.enabled }
-}
-
-const STAGE_LABEL = { sender: 'Sender', subject: 'Subject', body: 'Body', link: 'Body' }
-
-async function runTest(i) {
-  const r = editingRules[i], el = document.getElementById('test-' + i)
-  if (!el) return
-  if (!r._tFrom && !r._tSubject && !r._tBody) { el.className = 'test-result'; el.textContent = 'Enter a sample mail.'; return }
-  try {
-    const trace = await invoke('test_rule', { rule: cleanRule(r), from: r._tFrom||'', subject: r._tSubject||'', body: r._tBody||'' })
-    const failed = trace.stages.find(s => !s.ok)
-    el.className = 'test-result ' + (trace.value ? 'ok' : 'err')
-    el.textContent = trace.value
-      ? `✓ ${r.kind === 'link' ? 'Link' : 'Code'} found: ${trace.value}`
-      : `✗ No match – ${failed ? `${STAGE_LABEL[failed.stage]} ${failed.detail}` : 'nothing found'}`
-  } catch(e) {
-    el.className = 'test-result err'
-    el.textContent = '⚠ ' + e
-  }
-}
-
-async function saveAccount() {
-  const senderRaw = document.getElementById('f-sender-filter').value
-  const senderFilter = senderRaw ? senderRaw.split(',').map(s => s.trim()).filter(s => s) : []
-
-  const rules = editingRules.map(cleanRule)
-
-  const account = {
-    id: editId || crypto.randomUUID(),
-    label: document.getElementById('f-label').value,
-    server: document.getElementById('f-server').value,
-    port: parseInt(document.getElementById('f-port').value) || 993,
-    security: document.getElementById('f-security').value,
-    allow_invalid_certs: document.getElementById('f-invalid-certs').checked,
-    user: document.getElementById('f-user').value,
-    pass: document.getElementById('f-pass').value,
-    mailbox: document.getElementById('f-mailbox').value || 'INBOX',
-    sender_filter: senderFilter,
-    rules: rules,
-  }
-  try {
-    const cmd = editId ? 'update_account' : 'add_account'
-    await invoke(cmd, { account })
-    hideForm()
-    await loadAccounts()
-    await restartImap()
-    showToast('Account saved.', 'success')
-  } catch(e) {
-    showToast('Error: ' + e, 'error')
-  }
-}
-
-async function deleteAccount(id) {
-  if (!confirm('Delete this account?')) return
-  try {
-    await invoke('remove_account', { id })
-    await loadAccounts()
-    await restartImap()
-    showToast('Account deleted.', 'success')
-  } catch(e) {
-    showToast('Error: ' + e, 'error')
-  }
-}
-
-async function restartImap() {
-  try {
-    await invoke('restart_imap')
-  } catch(e) {}
-}
-
-loadAccounts()
-
+// ================= Startup =================
 async function setupListeners() {
   const ev = window.__TAURI__ && window.__TAURI__.event
   if (!ev) return
@@ -999,6 +1241,8 @@ async function setupListeners() {
   await ev.listen('api-status', (event) => renderApiStatus(event.payload))
   await ev.listen('log-entry', (event) => onLogEntry(event.payload))
 }
+
+go('accounts')
 setupListeners()
 invoke('get_api_settings').then(st => renderApiStatus(st.status)).catch(() => {})
 </script>

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::rule_store;
-use crate::rules::{default_rules, CompiledRules, DetectionRule};
+use crate::rules::{CompiledRule, DetectionRule};
 
 const KEYRING_SERVICE: &str = "otp-scout";
 const CONFIG_DIR: &str = "otp-scout";
@@ -45,8 +45,7 @@ pub struct AccountConfig {
     /// Fixed on creation, kept on rename; assigns rules to this account.
     #[serde(default)]
     pub tag: String,
-    /// Rules checked by this account. Filled from `rules.json` for the UI and
-    /// the IMAP loop, never written to config.json (only read for migration).
+    /// Rules of versions up to 0.2.0, only read to move them to `rules.json`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<DetectionRule>,
     #[serde(default)]
@@ -169,24 +168,6 @@ fn save_rules(config: &AppConfig) -> Result<()> {
     rule_store::save(&config_dir()?.join(RULES_FILE), &config.rules)
 }
 
-/// Accounts with the rules each one checks.
-fn accounts_with_rules(config: &AppConfig) -> Vec<AccountConfig> {
-    config
-        .accounts
-        .iter()
-        .map(|a| AccountConfig { rules: rule_store::rules_for(&config.rules, &a.tag), ..a.clone() })
-        .collect()
-}
-
-/// Stores the rules edited in the account dialog; no rules = default rules.
-fn apply_account_rules(config: &mut AppConfig, tag: &str, mut edited: Vec<DetectionRule>) {
-    if edited.is_empty() {
-        edited = default_rules();
-    }
-    let others: Vec<String> = config.accounts.iter().map(|a| a.tag.clone()).filter(|t| t != tag).collect();
-    rule_store::replace_for_account(&mut config.rules, tag, &others, edited);
-}
-
 fn keyring_entry(account_id: &str) -> Result<Entry> {
     Entry::new(KEYRING_SERVICE, account_id)
         .context("Failed to create keyring entry")
@@ -224,26 +205,20 @@ pub fn add_account(config: &SharedConfig, mut account: AccountConfig) -> Result<
     if password.is_empty() {
         anyhow::bail!("Password is required");
     }
-    let edited = std::mem::take(&mut account.rules);
-    CompiledRules::compile(&edited)?;
+    account.rules.clear();
     let mut cfg = config.blocking_lock();
     store_password(&account.id, &password)?;
     account.tag = rule_store::unique_tag(&account.label, cfg.accounts.iter().map(|a| a.tag.as_str()));
-    let tag = account.tag.clone();
     cfg.accounts.push(account);
-    apply_account_rules(&mut cfg, &tag, edited);
-    save_rules(&cfg)?;
     save_config(&cfg)?;
-    Ok(accounts_with_rules(&cfg))
+    Ok(cfg.accounts.clone())
 }
 
 pub fn update_account(
     config: &SharedConfig,
     mut account: AccountConfig,
 ) -> Result<Vec<AccountConfig>> {
-    CompiledRules::compile(&account.rules)?;
     let mut cfg = config.blocking_lock();
-    let mut tag = None;
     if let Some(existing) = cfg.accounts.iter_mut().find(|a| a.id == account.id) {
         if !account.pass.is_empty() {
             store_password(&account.id, &account.pass)?;
@@ -256,14 +231,56 @@ pub fn update_account(
         existing.user = std::mem::take(&mut account.user);
         existing.mailbox = std::mem::take(&mut account.mailbox);
         existing.sender_filter = std::mem::take(&mut account.sender_filter);
-        tag = Some(existing.tag.clone());
-    }
-    if let Some(tag) = tag {
-        apply_account_rules(&mut cfg, &tag, account.rules);
-        save_rules(&cfg)?;
     }
     save_config(&cfg)?;
-    Ok(accounts_with_rules(&cfg))
+    Ok(cfg.accounts.clone())
+}
+
+/// Renames an account's tag and moves all its rules along.
+pub fn rename_tag(config: &SharedConfig, account_id: &str, tag: &str) -> Result<Vec<AccountConfig>> {
+    let tag = tag.trim();
+    rule_store::validate_tag(tag)?;
+    let mut cfg = config.blocking_lock();
+    if cfg.accounts.iter().any(|a| a.tag == tag && a.id != account_id) {
+        anyhow::bail!("Tag '{tag}' is already used by another account");
+    }
+    let account = cfg.accounts.iter_mut().find(|a| a.id == account_id).context("Account not found")?;
+    let old = std::mem::replace(&mut account.tag, tag.to_string());
+    rule_store::rename_tag(&mut cfg.rules, &old, tag);
+    save_rules(&cfg)?;
+    save_config(&cfg)?;
+    Ok(cfg.accounts.clone())
+}
+
+pub fn get_rules(config: &SharedConfig) -> Vec<DetectionRule> {
+    config.blocking_lock().rules.clone()
+}
+
+/// Adds a rule (empty id) or replaces the one with the same id.
+pub fn save_rule(config: &SharedConfig, rule: DetectionRule) -> Result<Vec<DetectionRule>> {
+    CompiledRule::compile(&rule)?;
+    let mut cfg = config.blocking_lock();
+    rule_store::upsert(&mut cfg.rules, rule);
+    save_rules(&cfg)?;
+    Ok(cfg.rules.clone())
+}
+
+pub fn delete_rule(config: &SharedConfig, id: &str) -> Result<Vec<DetectionRule>> {
+    let mut cfg = config.blocking_lock();
+    cfg.rules.retain(|r| r.id != id);
+    save_rules(&cfg)?;
+    Ok(cfg.rules.clone())
+}
+
+/// Moves a rule up (`-1`) or down (`1`); the first matching rule wins.
+pub fn move_rule(config: &SharedConfig, id: &str, delta: i32) -> Result<Vec<DetectionRule>> {
+    let mut cfg = config.blocking_lock();
+    let from = cfg.rules.iter().position(|r| r.id == id).context("Rule not found")?;
+    let to = (from as i64 + delta as i64).clamp(0, cfg.rules.len() as i64 - 1) as usize;
+    let rule = cfg.rules.remove(from);
+    cfg.rules.insert(to, rule);
+    save_rules(&cfg)?;
+    Ok(cfg.rules.clone())
 }
 
 pub fn remove_account(config: &SharedConfig, id: &str) -> Result<Vec<AccountConfig>> {
@@ -275,7 +292,7 @@ pub fn remove_account(config: &SharedConfig, id: &str) -> Result<Vec<AccountConf
     cfg.accounts.retain(|a| a.id != id);
     let _ = delete_password(id);
     save_config(&cfg)?;
-    Ok(accounts_with_rules(&cfg))
+    Ok(cfg.accounts.clone())
 }
 
 pub fn get_api_config(config: &SharedConfig) -> ApiConfig {
@@ -320,14 +337,22 @@ pub fn regenerate_api_token() -> Result<String> {
 }
 
 pub fn get_accounts(config: &SharedConfig) -> Vec<AccountConfig> {
-    accounts_with_rules(&config.blocking_lock())
+    config.blocking_lock().accounts.clone()
 }
 
-/// Load all accounts with their rules, injecting passwords from keyring.
+/// Load all accounts from config, injecting passwords from keyring.
 pub fn load_accounts_with_passwords() -> Result<Vec<AccountConfig>> {
-    let mut accounts = accounts_with_rules(&load_config()?);
+    let mut accounts = load_config()?.accounts;
     for account in &mut accounts {
         account.pass = load_password(&account.id).unwrap_or_default();
     }
     Ok(accounts)
+}
+
+/// Fills in the stored password if the dialog left it blank (existing account).
+pub fn with_stored_password(mut account: AccountConfig) -> Result<AccountConfig> {
+    if account.pass.is_empty() {
+        account.pass = load_password(&account.id).context("Enter the password")?;
+    }
+    Ok(account)
 }
