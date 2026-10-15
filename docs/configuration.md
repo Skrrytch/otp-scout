@@ -1,14 +1,25 @@
-# INTERNAL.md — OTP-Scout File Formats & System Artifacts
+# Configuration Files
 
-This document describes every file and system artifact that OTP-Scout creates or reads on the user's machine.
+Everything you set up in OTP-Scout's settings is stored in `~/.config/otp-scout/` and in the system keyring. You don't need to edit these files by hand. This page is for backups, moving to another computer, troubleshooting and scripting.
+
+| Path | Contains |
+|------|----------|
+| [`~/.config/otp-scout/config.json`](#1-configotp-scoutconfigjson) | Accounts (without passwords), API settings |
+| [`~/.config/otp-scout/rules.json`](#2-configotp-scoutrulesjson) | Detection rules and the accounts checking them |
+| [`~/.config/otp-scout/catalog-cache.json`](#3-configotp-scoutcatalog-cachejson) | Last downloaded rule catalog |
+| [System keyring](#4-system-keyring), service `otp-scout` | IMAP passwords, API token |
+
+## Backup and Moving to Another Computer
+
+- **Copy `~/.config/otp-scout/`.** That carries over accounts, rules and API settings.
+- **Passwords aren't in these files.** They're in the keyring. After moving, edit each account and enter its password again. Until then the account shows *No password stored*.
+- **To pass on only rules**, e.g. to colleagues, use **Export** and **Import** in the rule list, see [Sharing rules](rules.md#sharing-rules). That leaves out accounts and account tags.
 
 ---
 
 ## 1. `~/.config/otp-scout/config.json`
 
-> Early development versions used `~/.config/authscout/config.json`; it is copied to the new location on first start if no new config exists yet.
-
-**Purpose**: Persistent configuration for all IMAP accounts and the API. Detection rules live in [`rules.json`](#2-configotp-scoutrulesjson).
+**Purpose**: Accounts and API settings. Detection rules live in [`rules.json`](#2-configotp-scoutrulesjson).
 
 **Created by**: OTP-Scout on first account save.
 
@@ -31,6 +42,12 @@ This document describes every file and system artifact that OTP-Scout creates or
 
       // IMAP port (usually 993 for TLS)
       "port": 993,
+
+      // "ssl" (implicit TLS) or "starttls"
+      "security": "ssl",
+
+      // Accept self-signed certificates, e.g. for the Proton Mail Bridge
+      "allow_invalid_certs": false,
 
       // IMAP username (usually the email address)
       "user": "user@gmail.com",
@@ -83,7 +100,9 @@ Versions up to 0.2.0 kept the rules in `accounts[].rules`. On first start they a
 
 **Purpose**: All detection rules, independent of accounts.
 
-**Created by**: OTP-Scout on first account save, or when migrating an older `config.json`. An unreadable file is renamed to `rules.json.broken`.
+**Created by**: OTP-Scout on first account save, or when migrating an older `config.json`. An unreadable file is renamed to `rules.json.broken`, and OTP-Scout starts without rules. Fix the file and rename it back, or import it via **Rules → Import…**.
+
+Rule names (`label`) are unique, ignoring case and surrounding spaces, because import matches rules by name. The editor rejects a second rule with the same name.
 
 ### Schema
 
@@ -160,11 +179,11 @@ Rules are edited in the *Rules* section; changes reach the running connections w
 | `rules[].kind` | enum | no | `"code"` | `"code"` or `"link"` |
 | `rules[].link_prefix` | string | link | `""` | Link mode: required URL prefix (`http(s)://…`) |
 | `rules[].code_pattern` | string | no | `[A-Za-z0-9-]{4,12}` | Regex for the code itself |
-
-\* `sender` or `subject` must be set. Legacy rules (`search_field`/`context_pattern`/`capture_pattern`) are converted on load.
 | `rules[].enabled` | bool | no | `true` | Whether the rule is active |
 
-### Sender Filter Glob Syntax
+\* `sender` or `subject` must be set. Legacy rules (`search_field`/`context_pattern`/`capture_pattern`) are converted on load. Pattern syntax and examples: [Rules](rules.md#patterns).
+
+### Sender Patterns
 
 | Pattern | Matches |
 |---------|---------|
@@ -184,9 +203,32 @@ New emails are all emails with a UID above the last one handled, read or not; on
 - Code rules apply `body` to the plain text (HTML converted if there is no text part).
 - Link rules search the HTML (`href` targets) and the text for the first `http(s)://` URL starting with `link_prefix` (case-insensitive).
 
+### Export format
+
+**Export** writes the same structure with a type marker, without `id`, `tags` and `enabled`, and only the fields of each rule's `kind`. **Import** accepts this format and a plain `rules.json`.
+
+```json
+{
+  "type": "otp-scout-rules",
+  "version": 1,
+  "rules": [
+    { "label": "GitHub", "kind": "code", "sender": "noreply@github.com", "subject": "[GitHub] Please verify your device",
+      "body": "Verification code: {code}", "code_pattern": "[0-9]{6}" }
+  ]
+}
+```
+
 ---
 
-## 3. System Keyring
+## 3. `~/.config/otp-scout/catalog-cache.json`
+
+**Purpose**: The last rule catalog downloaded from GitHub. It's shown in **Settings → Catalog** when GitHub is unreachable.
+
+**Created by**: OTP-Scout each time the catalog is downloaded. It's safe to delete.
+
+---
+
+## 4. System Keyring
 
 **Purpose**: Secure storage of IMAP passwords and the API token.
 
@@ -222,7 +264,7 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 ---
 
-## 4. `$XDG_RUNTIME_DIR/tray-icon/` (or `/tmp/tray-icon/`)
+## 5. `$XDG_RUNTIME_DIR/tray-icon/` (or `/tmp/tray-icon/`)
 
 **Purpose**: Temporary PNG files for the system tray icon.
 
@@ -236,23 +278,18 @@ Passwords are **never** written to `config.json`. The `pass` field is marked `#[
 
 ---
 
-## 5. Files NOT Created (v0.1.0)
+## 6. What OTP-Scout Doesn't Store
 
-The following are explicitly **not** created by OTP-Scout in the current version:
+OTP-Scout doesn't create the following:
 
 - **No log files** — logging goes to stdout/stderr only; the Log tab keeps the last 500 entries in memory
-- **No code history** — detected codes are not persisted to disk
+- **No code or mail history**: detected codes and mail text are never written to disk
 - **No cache directory** — no `~/.cache/otp-scout/`
 - **No autostart entry** — no `~/.config/autostart/otp-scout.desktop`
 - **No lock file or PID file**
 
----
 
-## Summary
+## Older Versions
 
-| Path | Type | Contains |
-|------|------|----------|
-| `~/.config/otp-scout/config.json` | JSON | Accounts, sender filters, API settings |
-| `~/.config/otp-scout/rules.json` | JSON | Detection rules and their account tags |
-| System keyring (`otp-scout`) | Encrypted | IMAP passwords (one per account ID), API token |
-| `$XDG_RUNTIME_DIR/tray-icon/` | PNG files | Temporary tray icons (auto-managed) |
+- **Up to 0.2.0** kept rules inside `config.json` (`accounts[].rules`). On first start they're moved to `rules.json`, and the old file is kept as `config.json.bak`.
+- **Early development versions** used the name *authscout*. `~/.config/authscout/config.json` and keyring entries of the service `authscout` are copied over on first start.

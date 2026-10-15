@@ -1,6 +1,6 @@
 # OTP-Scout — Development
 
-Technical notes for building, packaging and extending OTP-Scout. For the user guide see [README.md](README.md); for files and keyring entries the app creates see [INTERNAL.md](INTERNAL.md).
+Technical notes for building, packaging and extending OTP-Scout. User documentation lives in [README.md](README.md) and [docs/](docs/): [accounts](docs/accounts.md), [rules](docs/rules.md), [local API](docs/api.md) and [configuration files](docs/configuration.md).
 
 ## How It Works
 
@@ -42,8 +42,20 @@ cargo tauri build --bundles deb      # → target/release/bundle/deb/
 A package built locally only runs on systems with the same or a newer glibc. Official releases are therefore built by GitHub Actions on Ubuntu 22.04 ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
 
 1. Bump `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
-2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`
+2. Commit, then tag and push: `git tag v0.4.0 && git push origin v0.4.0`
 3. The workflow tests, builds the `.deb`, and publishes a GitHub release with the package and `SHA256SUMS`.
+4. Add the release notes: the workflow only writes the install section, since there are no pull requests to generate notes from. Put a *What's new* section on top, grouped by feature area as in earlier releases, and apply it with `gh release edit v0.4.0 --notes-file notes.md`.
+
+## Screenshots
+
+The images in `docs/images/` are rendered from `dist/` in headless Chrome, with demo data instead of the app ([`docs/screenshots/mock-tauri.js`](docs/screenshots/mock-tauri.js)). No real accounts, senders or codes end up in them. After UI changes, run:
+
+```bash
+python3 docs/screenshots/make.py                # all, light and dark
+python3 docs/screenshots/make.py rule-editor    # single image
+```
+
+The demo data and the scenario for each image are in `mock-tauri.js`; size and page in `make.py`.
 
 ## Architecture
 
@@ -81,32 +93,8 @@ src-tauri/src/
 | `code_pattern` | Regex for the code itself (default `[A-Za-z0-9-]{4,12}`) |
 | `link_prefix` | Link rules only: the first `http(s)://` URL starting with this (case-insensitive) is offered |
 
-A rule needs a sender or a subject. Each account checks the rules tagged with its tag or `*`, in order; the first match wins. The full config schema is in [INTERNAL.md](INTERNAL.md).
+A rule needs a sender or a subject. Each account checks the rules tagged with its tag or `*`, in order; the first match wins. The full schema is in [docs/configuration.md](docs/configuration.md).
 
 ## Local HTTP API
 
-Enabled in **Settings → API** (off by default). Listens on `127.0.0.1` only, default port `6870`.
-
-| Endpoint | Body |
-|---|---|
-| `POST /api/otp/code` | `{"code": "123456", "ruleName": "GitHub"}` |
-| `POST /api/otp/link` | `{"link": "https://…", "ruleName": "My site"}` |
-
-- Every request needs the header `X-OTP-Scout-Token` (shown in the API tab, stored in the keyring, regenerable). It is compared in constant time.
-- Links must use `https://`. If *Allowed links* is set, they must start with one of its entries.
-- Limits: code ≤ 64 characters, link ≤ 2048, body ≤ 16 KB.
-- CORS is open (`*`), but nothing is accepted without the token. In Tampermonkey use `GM_xmlhttpRequest` with `@connect 127.0.0.1`, so the visited page never sees the token.
-- Responses: `200 {"ok":true}`, `400` invalid body, `401` missing/wrong token, `403` link not allowed.
-
-```js
-// ==UserScript==
-// @grant   GM_xmlhttpRequest
-// @connect 127.0.0.1
-// ==/UserScript==
-GM_xmlhttpRequest({
-  method: 'POST',
-  url: 'http://127.0.0.1:6870/api/otp/code',
-  headers: { 'Content-Type': 'application/json', 'X-OTP-Scout-Token': 'YOUR_TOKEN' },
-  data: JSON.stringify({ code: '123456', ruleName: 'My site' }),
-})
-```
+Endpoints, token handling and a Tampermonkey example: [docs/api.md](docs/api.md). The server is in `src-tauri/src/api.rs`.

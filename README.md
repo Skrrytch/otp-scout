@@ -1,116 +1,88 @@
 # OTP-Scout
 
-*your one-time password helper*
+*your one-time password helper* · a tray app for Linux
 
-**OTP-Scout watches your mailboxes and pops up one-time passwords and magic login links the moment they arrive — copy the code or open the link with one click, without opening your mail client.**
+**OTP-Scout watches your mailboxes and pops up one-time passwords and magic login links the moment they arrive. Copy the code or open the link with one click, without opening your mail client.**
 
-You log in somewhere, the site sends you a code by email — and instead of switching to your mail program, waiting, searching and copying, the code simply appears on your screen:
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/popup-code-dark.png">
+    <img src="docs/images/popup-code-light.png" width="400" alt="Popup showing the code 482913 from a GitHub mail, with the buttons Copy and Copy and destroy">
+  </picture>
+</p>
 
-```
-┌──────────────────────────────────┐
-│  Gmail · GitHub               ✕  │
-│                                  │
-│            4 8 2 9 1 3           │
-│                                  │
-│  [   Copy   ] [Copy and destroy] │
-└──────────────────────────────────┘
-```
+You log in somewhere and the site sends you a code by email. Instead of switching to your mail program, waiting, searching and copying, the code appears in the middle of your screen. One click and it's in your clipboard.
 
-One click and it is in your clipboard. Paste it, done.
+## Who It's For
+
+- You log in **many times a day** with codes sent by mail: shops, streaming, AI tools, work portals.
+- You work with **several mailboxes**, e.g. private, work and test accounts, and don't want to check each one.
+- Your services offer **no authenticator app**, only email codes or magic links.
 
 ## What It Does for You
 
-- **Codes appear instantly.** As soon as the email arrives, the code pops up in the middle of your screen — no refreshing, no waiting.
-- **One click to copy.** Click the code (or press Enter) and paste it wherever you need it.
-- **Login links, too.** Some services (like Claude) send a link instead of a code. OTP-Scout recognizes it and opens it in your browser with one click.
+- **Codes appear instantly.** The mail server tells OTP-Scout about new mail right away (IMAP IDLE), with no polling.
+- **One click to copy.** Click the code or press Enter, then paste it wherever you need it.
+- **Login links, too.** Some services, such as Claude, send a link instead of a code. OTP-Scout recognizes it and opens it in your browser with one click.
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/popup-link-dark.png">
+    <img src="docs/images/popup-link-light.png" width="340" alt="Popup offering a claude.ai magic link with the buttons Open link and Open and destroy">
+  </picture>
 - **Keep your inbox clean.** *Copy and destroy* copies the code and deletes the email in one go.
-- **All your mailboxes.** Gmail, Outlook, your company account, Proton Mail via the Bridge — as many as you like.
-- **You decide what counts.** Tell OTP-Scout what the emails look like (sender, subject) and try your rules with a sample email right in the settings.
+- **All your mailboxes.** Gmail, iCloud, GMX, your company account, Proton Mail via the Bridge. Add as many as you like.
+- **Ready-made rules.** Pick common services from the built-in catalog, or describe the email yourself and test the rule with a sample right away.
 - **Out of your way.** It lives quietly in the system tray and only shows up when there is something for you.
-- **Your passwords stay safe.** They are kept in your system's keyring, never in a plain text file.
+
+## A Look at the Settings
+
+| Accounts | Rules with live test | Catalog |
+|---|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/accounts-dark.png"><img src="docs/images/accounts-light.png" alt="Account list with three connected mailboxes"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/rule-editor-dark.png"><img src="docs/images/rule-editor-light.png" alt="Rule editor; the test box shows the code found in a sample mail"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/catalog-dark.png"><img src="docs/images/catalog-light.png" alt="Catalog of preconfigured rules grouped by category"></picture> |
+| Connect your mailboxes and see their status at a glance. | Describe the mail; the test box shows step by step whether the code is found. | Add rules for common services with one click. |
 
 ## Install
 
 For Ubuntu 22.04+, Linux Mint 21+ and Debian 12+:
 
 1. Download the `.deb` file from the [latest release](https://github.com/Skrrytch/otp-scout/releases/latest).
-2. Install it — double-click it, or in a terminal:
+2. Install it by double-clicking it, or in a terminal:
    ```bash
    sudo apt install ./otp-scout_*_amd64.deb
    ```
 3. Start **OTP-Scout** from your application menu. A magnifying-glass icon appears in the system tray.
 
-## Getting Started
+To uninstall: `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
+
+## Quick Start
 
 1. Click the tray icon and choose **Settings**.
-2. Under **Accounts**, click **+ Add account** and enter your mail server, username and password. **Test connection** checks them before you save.
-   - **Gmail:** server `imap.gmail.com`, and an [app password](https://myaccount.google.com/apppasswords) instead of your normal password.
-   - **Proton Mail:** see [below](#proton-mail).
-3. Save — the account list shows whether the connection works.
+2. Under **Accounts**, click **+ Add account** and enter your mail server, username and password. **Test connection** checks them before you save. For Gmail, Proton Mail and others, see [Setting up accounts](docs/accounts.md).
+3. Under **Catalog**, click **+** next to the services you use. Or create your own rule under **Rules**, see [Rules](docs/rules.md).
 4. Send yourself a test: an email with the subject `123456 is your verification code` pops up right away.
 
-## Rules: Telling OTP-Scout What to Look For
+## Everyday Use
 
-Out of the box, OTP-Scout recognizes emails whose subject reads like *"123456 is your verification code"*. For other services, add rules under **Rules** — your own, or ready-made ones from the **Catalog**.
+- **Popup:** Enter or a click copies the code, Esc dismisses it. Several codes at once are stacked, and each disappears after two minutes. Hovering over the popup pauses the countdown.
+- **Tray menu:** *Check now* checks all mailboxes immediately. The menu also opens *Settings* and *About*, and *Quit* ends OTP-Scout.
+- **Connection problems** show up on the account card and as a desktop notification. OTP-Scout reconnects on its own.
+- **No popup for a mail?** The *Log* tab shows every checked mail and why each rule did or didn't match. See [Why wasn't a code detected?](docs/rules.md#why-wasnt-a-code-detected)
 
-Each rule says which accounts check it: *All accounts* (the default), or only some of them. A rule for your work account then doesn't fire on your private mail. Changing a rule takes effect with the next mail, without reconnecting.
+## Privacy & Security
 
-### Code rules
+- **Everything stays on your computer.** OTP-Scout talks only to your mail servers. The only other request loads the rule catalog from GitHub.
+- **It reads as little as possible.** Only sender and subject of new mails are fetched. The mail text is downloaded only when a rule needs it. Nothing is marked as read.
+- **Nothing is written to disk.** Codes and mail text aren't stored. The *Log* tab keeps sender, subject and rule results in memory only, with codes masked.
+- **Your passwords stay safe.** They're kept in the system keyring (GNOME Keyring, KWallet), never in a plain text file.
 
-Describe the email the way it arrives and mark where the code is with `{code}`:
+## Documentation
 
-| You enter | Matches emails like |
-|---|---|
-| Subject: `{code} is your code` | *482913 is your code* |
-| Subject: `Your * login code: {code}` | *Your GitHub login code: 482913* |
-| Sender: `noreply@github.com` | only emails from GitHub |
-
-Use `*` for parts that change. Upper/lower case doesn't matter.
-
-If the code is not in the subject but in the email text, leave `{code}` out of the subject and describe the text around the code instead, e.g. `Your verification code is {code}`.
-
-### Link rules
-
-For services that send a login link instead of a code: enter the sender and/or subject, and how the link starts, e.g. `https://claude.ai/magic-link`. Only links starting exactly like this are ever offered.
-
-### Try before you save
-
-The rule editor has a test box: paste a sample sender, subject or email text and see immediately whether the code or link is found — or at which step the rule fails.
-
-### Share rules
-
-**Export** in the rule list copies the visible rules as JSON or saves them to a file; **Share** in the rule editor does the same for a single rule. **Import…** reads such a file or pasted JSON and shows what will happen before anything changes. Rules are matched by name: a rule with the same name is updated and keeps its accounts, active state and position, all others are added. Rule names are therefore unique.
-
-Tested a rule against a real mail? **Share → Suggest for the catalog…** turns it into a catalog entry and opens a prefilled GitHub issue, so everyone can use it.
-
-## Proton Mail
-
-OTP-Scout works with the [Proton Mail Bridge](https://proton.me/mail/bridge). In the account settings use:
-
-- Server `127.0.0.1`, port `1143`
-- Encryption **STARTTLS**
-- **Accept self-signed certificate** ✔
-- The username and the *bridge password* shown in the Bridge app
-
-**Expect a delay of up to about 40 seconds.** The Bridge polls Proton only every 20–40 seconds, so a code arrives in your local mailbox that much later. OTP-Scout shows it as soon as the Bridge reports it. If you need codes faster, have the login mails of those services forwarded to a mailbox with real IMAP push (most providers) and add that account instead.
-
-## Codes from Your Browser
-
-Optionally, OTP-Scout can receive codes and links from browser scripts (e.g. Tampermonkey) and show them in the same popup. Turn it on in **Settings → API** — you'll find a ready-to-use script there. Details for script authors are in [DEVELOPMENT.md](DEVELOPMENT.md#local-http-api).
-
-## Good to Know
-
-- **Tray menu:** *Check now* checks all mailboxes immediately, *Settings*, *About*, *Quit*.
-- **Connection problems** are shown on the account card and as a desktop notification; OTP-Scout reconnects automatically.
-- **Several codes at once** are stacked in the popup; each one disappears after two minutes.
-- **Your emails stay unread.** OTP-Scout only reads what it needs and doesn't mark anything as read.
-- **Why wasn't a code detected?** The *Log* tab in the settings lists every checked mail and, per rule, whether sender, subject and body matched. From there you can jump to the rule or create a new one from the mail. The log stays in memory only.
-- **Debug output:** start with `RUST_LOG=otp_scout=debug otp-scout` to see when the server reported a mail and how long headers and body took.
-- **Uninstall:** `sudo apt remove otp-scout`. Your settings in `~/.config/otp-scout/` are kept.
-
-## For Developers
-
-Building from source, architecture and the API reference: see [DEVELOPMENT.md](DEVELOPMENT.md).
+- [Setting up accounts](docs/accounts.md): IMAP settings for common providers, Proton Mail Bridge, connection problems
+- [Rules](docs/rules.md): code and link rules, patterns, catalog, sharing rules, why a code wasn't detected
+- [Codes from your browser](docs/api.md): the local HTTP API for Tampermonkey and other scripts
+- [Configuration files](docs/configuration.md): where settings, rules and passwords are stored
+- [Development](DEVELOPMENT.md): building from source, tests, releases, architecture
+- [Rule catalog](catalog/README.md): format and how to contribute
 
 ## License
 

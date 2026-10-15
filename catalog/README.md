@@ -1,6 +1,6 @@
 # OTP-Scout Rule Catalog
 
-`catalog.json` holds the preconfigured detection rules that OTP-Scout offers in the **Catalog** tab of the account dialog. The app downloads the file from this repository at runtime, so changes here reach all users without a new release.
+`catalog.json` holds the preconfigured detection rules that OTP-Scout offers under **Settings → Catalog**. The app downloads the file from this repository at runtime, so changes here reach all users without a new release.
 
 ## ⚠️ Data quality
 
@@ -35,7 +35,7 @@ The catalog is a tree with three levels:
 2. **App** – a single service, e.g. *Spotify*. An app contains one variant per language it supports. An app may support only some languages and then appears only when one of them is selected.
 3. **Rules** – each language variant contains one or more detection rules. A rule is either a **code** rule (the code is shown and copied) or a **link** rule (a login link is offered for opening). Variants can mix both kinds. A service might, for example, send a code in one language and a link in another, or use two different mail templates.
 
-When a user clicks **+** next to an app, all rules of the selected language are copied into the account's own rules. From then on they are independent of the catalog and can be edited freely.
+When a user clicks **+** next to an app, all rules of the selected language are copied to the user's rules, checked by all accounts (or the ones picked with **▾**). From then on they are independent of the catalog and can be edited freely.
 
 ## JSON format
 
