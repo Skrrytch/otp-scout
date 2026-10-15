@@ -256,7 +256,23 @@ pub fn get_rules(config: &SharedConfig) -> Vec<DetectionRule> {
 pub fn save_rule(config: &SharedConfig, rule: DetectionRule) -> Result<Vec<DetectionRule>> {
     CompiledRule::compile(&rule)?;
     let mut cfg = config.blocking_lock();
+    rule_store::check_unique_label(&cfg.rules, &rule)?;
     rule_store::upsert(&mut cfg.rules, rule);
+    save_rules(&cfg)?;
+    Ok(cfg.rules.clone())
+}
+
+pub fn preview_import(config: &SharedConfig, json: &str) -> Result<Vec<rule_store::ImportItem>> {
+    let incoming = rule_store::parse_import(json)?;
+    Ok(rule_store::preview_import(&config.blocking_lock().rules, incoming))
+}
+
+/// Imports the rules named in `labels`; new ones are checked by `tags`.
+pub fn apply_import(config: &SharedConfig, json: &str, labels: &[String], tags: &[String]) -> Result<Vec<DetectionRule>> {
+    let mut incoming = rule_store::parse_import(json)?;
+    incoming.retain(|r| labels.contains(&r.label));
+    let mut cfg = config.blocking_lock();
+    rule_store::apply_import(&mut cfg.rules, incoming, tags);
     save_rules(&cfg)?;
     Ok(cfg.rules.clone())
 }

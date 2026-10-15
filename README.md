@@ -77,6 +77,12 @@ For services that send a login link instead of a code: enter the sender and/or s
 
 The rule editor has a test box: paste a sample sender, subject or email text and see immediately whether the code or link is found — or at which step the rule fails.
 
+### Share rules
+
+**Export** in the rule list copies the visible rules as JSON or saves them to a file; **Share** in the rule editor does the same for a single rule. **Import…** reads such a file or pasted JSON and shows what will happen before anything changes. Rules are matched by name: a rule with the same name is updated and keeps its accounts, active state and position, all others are added. Rule names are therefore unique.
+
+Tested a rule against a real mail? **Share → Suggest for the catalog…** turns it into a catalog entry and opens a prefilled GitHub issue, so everyone can use it.
+
 ## Proton Mail
 
 OTP-Scout works with the [Proton Mail Bridge](https://proton.me/mail/bridge). In the account settings use:

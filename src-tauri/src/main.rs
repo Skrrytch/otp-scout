@@ -9,6 +9,7 @@ use tauri::{
     AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl,
 };
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use tokio::sync::{mpsc, Mutex, Notify};
 
@@ -100,6 +101,51 @@ fn delete_rule(state: State<AppState>, id: String) -> Result<Vec<rules::Detectio
 #[tauri::command]
 fn move_rule(state: State<AppState>, id: String, delta: i32) -> Result<Vec<rules::DetectionRule>, String> {
     config::move_rule(&state.config, &id, delta).map(|r| state.publish_rules(r)).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn export_rules(rules: Vec<rules::DetectionRule>) -> Result<String, String> {
+    rule_store::export(&rules).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn preview_import(state: State<AppState>, json: String) -> Result<Vec<rule_store::ImportItem>, String> {
+    config::preview_import(&state.config, &json).map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+fn apply_import(
+    state: State<AppState>,
+    json: String,
+    labels: Vec<String>,
+    tags: Vec<String>,
+) -> Result<Vec<rules::DetectionRule>, String> {
+    config::apply_import(&state.config, &json, &labels, &tags).map(|r| state.publish_rules(r)).map_err(|e| format!("{e:#}"))
+}
+
+/// Asks for a target file and writes `content`. Returns the path, `None` if cancelled.
+#[tauri::command]
+async fn save_json_file(app: AppHandle, file_name: String, content: String) -> Result<Option<String>, String> {
+    let picked = async_runtime::spawn_blocking(move || {
+        app.dialog().file().add_filter("JSON", &["json"]).set_file_name(file_name).blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(path) = picked else { return Ok(None) };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&path, content).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(Some(path.display().to_string()))
+}
+
+/// Asks for a JSON file and returns its content, `None` if cancelled.
+#[tauri::command]
+async fn open_json_file(app: AppHandle) -> Result<Option<String>, String> {
+    let picked = async_runtime::spawn_blocking(move || app.dialog().file().add_filter("JSON", &["json"]).blocking_pick_file())
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(path) = picked else { return Ok(None) };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    std::fs::read_to_string(&path).map(Some).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 #[tauri::command]
@@ -450,6 +496,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(app_state)
         .manage(status::StatusStore::default())
         .manage(log::LogBuffer::default())
@@ -468,6 +515,11 @@ fn main() {
             save_rule,
             delete_rule,
             move_rule,
+            export_rules,
+            preview_import,
+            apply_import,
+            save_json_file,
+            open_json_file,
             show_about,
             hide_window,
             get_status,

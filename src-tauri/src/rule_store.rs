@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::config::AccountConfig;
-use crate::rules::DetectionRule;
+use crate::rules::{CatalogRef, CompiledRule, DetectionRule, RuleKind};
 
 /// Highest `rules.json` format version this build understands.
 const RULES_VERSION: u32 = 1;
@@ -133,6 +133,183 @@ pub fn remove_tag(rules: &mut [DetectionRule], tag: &str) {
     }
 }
 
+/// Rules are identified by name across installations: trimmed, case ignored.
+fn name_key(label: &str) -> String {
+    label.trim().to_lowercase()
+}
+
+/// Rejects a rule whose name another rule already uses.
+pub fn check_unique_label(rules: &[DetectionRule], rule: &DetectionRule) -> Result<()> {
+    if name_key(&rule.label).is_empty() {
+        bail!("Rule name is empty");
+    }
+    if rules.iter().any(|r| r.id != rule.id && name_key(&r.label) == name_key(&rule.label)) {
+        bail!("A rule named “{}” already exists", rule.label.trim());
+    }
+    Ok(())
+}
+
+/// Marks a file with shared rules, so other JSON is rejected with a clear message.
+const EXPORT_TYPE: &str = "otp-scout-rules";
+
+/// A rule as shared with others: no id, accounts or active state, as those
+/// belong to the local installation. Only fields of the rule's kind are written.
+#[derive(Serialize)]
+struct SharedRule<'a> {
+    label: &'a str,
+    kind: RuleKind,
+    sender: &'a str,
+    subject: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code_pattern: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    link_prefix: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    catalog: Option<&'a CatalogRef>,
+}
+
+impl<'a> From<&'a DetectionRule> for SharedRule<'a> {
+    fn from(r: &'a DetectionRule) -> Self {
+        let code = r.kind == RuleKind::Code;
+        Self {
+            label: r.label.trim(),
+            kind: r.kind,
+            sender: &r.sender,
+            subject: &r.subject,
+            body: code.then_some(r.body.as_str()),
+            code_pattern: code.then_some(r.code_pattern.as_str()),
+            link_prefix: (!code).then_some(r.link_prefix.as_str()),
+            catalog: r.catalog.as_ref(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ExportFile<'a> {
+    #[serde(rename = "type")]
+    file_type: &'a str,
+    version: u32,
+    rules: Vec<SharedRule<'a>>,
+}
+
+/// JSON with the given rules, ready to share.
+pub fn export(rules: &[DetectionRule]) -> Result<String> {
+    let file = ExportFile { file_type: EXPORT_TYPE, version: RULES_VERSION, rules: rules.iter().map(SharedRule::from).collect() };
+    Ok(serde_json::to_string_pretty(&file)?)
+}
+
+#[derive(Deserialize)]
+struct ImportFile {
+    #[serde(rename = "type")]
+    file_type: Option<String>,
+    version: u32,
+    rules: Vec<DetectionRule>,
+}
+
+/// Reads exported rules; a plain `rules.json` is accepted as well.
+pub fn parse_import(json: &str) -> Result<Vec<DetectionRule>> {
+    let file: ImportFile = serde_json::from_str(json).context("Not a valid OTP-Scout rule export")?;
+    if file.file_type.as_deref().is_some_and(|t| t != EXPORT_TYPE) {
+        bail!("Not an OTP-Scout rule export");
+    }
+    if file.version > RULES_VERSION {
+        bail!("Export has version {}, this build supports up to {RULES_VERSION} – please update OTP-Scout", file.version);
+    }
+    let mut seen = Vec::new();
+    for rule in &file.rules {
+        let key = name_key(&rule.label);
+        if key.is_empty() {
+            bail!("A rule without a name can't be imported");
+        }
+        if seen.contains(&key) {
+            bail!("The name “{}” appears more than once", rule.label.trim());
+        }
+        seen.push(key);
+        CompiledRule::compile(rule).with_context(|| format!("Rule “{}”", rule.label.trim()))?;
+    }
+    Ok(file.rules)
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportStatus {
+    New,
+    Update,
+    Unchanged,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportItem {
+    pub rule: DetectionRule,
+    pub status: ImportStatus,
+    /// Fields an update changes, e.g. `subject`.
+    pub changes: Vec<&'static str>,
+}
+
+/// Fields deciding what a rule matches; only those of its kind count.
+fn matching_fields(r: &DetectionRule) -> Vec<(&'static str, &str)> {
+    let mut fields = vec![("sender", r.sender.as_str()), ("subject", r.subject.as_str())];
+    match r.kind {
+        RuleKind::Code => fields.extend([("body", r.body.as_str()), ("code_pattern", r.code_pattern.as_str())]),
+        RuleKind::Link => fields.push(("link_prefix", r.link_prefix.as_str())),
+    }
+    fields
+}
+
+fn changes(existing: &DetectionRule, incoming: &DetectionRule) -> Vec<&'static str> {
+    if existing.kind != incoming.kind {
+        return vec!["kind"];
+    }
+    let old = matching_fields(existing);
+    matching_fields(incoming).into_iter().zip(old).filter(|(new, old)| new.1 != old.1).map(|(new, _)| new.0).collect()
+}
+
+fn find_by_name<'a>(rules: &'a mut [DetectionRule], label: &str) -> Option<&'a mut DetectionRule> {
+    rules.iter_mut().find(|r| name_key(&r.label) == name_key(label))
+}
+
+/// What importing `incoming` would do to `rules`.
+pub fn preview_import(rules: &[DetectionRule], incoming: Vec<DetectionRule>) -> Vec<ImportItem> {
+    let mut rules = rules.to_vec();
+    incoming
+        .into_iter()
+        .map(|rule| {
+            let (status, changes) = match find_by_name(&mut rules, &rule.label) {
+                None => (ImportStatus::New, vec![]),
+                Some(existing) => match changes(existing, &rule) {
+                    c if c.is_empty() => (ImportStatus::Unchanged, c),
+                    c => (ImportStatus::Update, c),
+                },
+            };
+            ImportItem { rule, status, changes }
+        })
+        .collect()
+}
+
+/// Updates rules with the same name in place, keeping their id, accounts,
+/// active state and position. New rules are appended with `tags`.
+pub fn apply_import(rules: &mut Vec<DetectionRule>, incoming: Vec<DetectionRule>, tags: &[String]) {
+    for rule in incoming {
+        match find_by_name(rules, &rule.label) {
+            Some(existing) => {
+                existing.kind = rule.kind;
+                existing.sender = rule.sender;
+                existing.subject = rule.subject;
+                existing.body = rule.body;
+                existing.code_pattern = rule.code_pattern;
+                existing.link_prefix = rule.link_prefix;
+                existing.catalog = rule.catalog.or(existing.catalog.take());
+            }
+            None => upsert(
+                rules,
+                DetectionRule { id: String::new(), label: rule.label.trim().to_string(), tags: tags.to_vec(), enabled: true, ..rule },
+            ),
+        }
+    }
+}
+
 fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
@@ -140,7 +317,6 @@ fn new_id() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rules::RuleKind;
 
     fn rule(label: &str, subject: &str) -> DetectionRule {
         DetectionRule {
@@ -257,5 +433,67 @@ mod tests {
         std::fs::write(&path, r#"{"version":99,"rules":[]}"#).unwrap();
         assert!(load(&path).is_err());
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn test_check_unique_label() {
+        let rules = vec![stored("a", &["*"])];
+        assert!(check_unique_label(&rules, &DetectionRule { label: " A ".into(), ..stored("b", &[]) }).is_err());
+        assert!(check_unique_label(&rules, &stored("a", &[])).is_ok());
+        assert!(check_unique_label(&rules, &DetectionRule { label: " ".into(), ..stored("b", &[]) }).is_err());
+    }
+
+    #[test]
+    fn test_export_strips_local_fields() {
+        let link = DetectionRule { kind: RuleKind::Link, link_prefix: "https://x.io/l".into(), enabled: false, ..stored("l", &["x"]) };
+        let json = export(&[stored("c", &["*"]), link.clone()]).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], EXPORT_TYPE);
+        for r in v["rules"].as_array().unwrap() {
+            assert!(r.get("id").is_none() && r.get("tags").is_none() && r.get("enabled").is_none());
+        }
+        assert!(v["rules"][0].get("link_prefix").is_none());
+        assert!(v["rules"][1].get("code_pattern").is_none());
+        // Roundtrip: an export imports as the same rules.
+        let back = parse_import(&json).unwrap();
+        assert_eq!(back.len(), 2);
+        assert!(changes(&link, &back[1]).is_empty());
+    }
+
+    #[test]
+    fn test_parse_import_rejects_bad_input() {
+        assert!(parse_import(r#"{"type":"other","version":1,"rules":[]}"#).is_err());
+        assert!(parse_import(r#"{"version":99,"rules":[]}"#).is_err());
+        assert!(parse_import(r#"{"version":1,"rules":[{"label":"A","subject":"{code}"},{"label":" a","subject":"x"}]}"#).is_err());
+        assert!(parse_import(r#"{"version":1,"rules":[{"label":"","subject":"{code}"}]}"#).is_err());
+        assert!(parse_import(r#"{"version":1,"rules":[{"label":"A","subject":"{code} {code}"}]}"#).is_err());
+        // A plain rules.json is accepted.
+        assert_eq!(parse_import(r#"{"version":1,"rules":[{"id":"x","label":"A","subject":"{code}"}]}"#).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_import_matches_by_name() {
+        let mut rules = vec![
+            DetectionRule { enabled: false, ..stored("GitHub", &["work"]) },
+            stored("Spotify", &["*"]),
+        ];
+        let incoming = vec![
+            DetectionRule { subject: "{code} new".into(), ..rule(" github ", "") },
+            rule("spotify", "{code} x"),
+            rule("OpenAI", "{code} openai"),
+        ];
+        let preview = preview_import(&rules, incoming.clone());
+        assert_eq!(preview.iter().map(|i| &i.status).collect::<Vec<_>>(), [&ImportStatus::Update, &ImportStatus::Unchanged, &ImportStatus::New]);
+        assert_eq!(preview[0].changes, ["subject"]);
+
+        apply_import(&mut rules, incoming, &["proton".into()]);
+        assert_eq!(rules.len(), 3);
+        // Updated in place: id, name, accounts and active state stay.
+        assert_eq!((rules[0].id.as_str(), rules[0].label.as_str(), rules[0].subject.as_str()), ("GitHub", "GitHub", "{code} new"));
+        assert_eq!(tags(&rules[0]), ["work"]);
+        assert!(!rules[0].enabled);
+        assert_eq!(rules[2].label, "OpenAI");
+        assert_eq!(tags(&rules[2]), ["proton"]);
+        assert!(rules[2].enabled && !rules[2].id.is_empty());
     }
 }

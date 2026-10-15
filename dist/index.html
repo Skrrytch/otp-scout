@@ -143,6 +143,28 @@ label.check input { width:auto; }
 @media (prefers-color-scheme: dark) { .unverified-badge { color:#fbbf24; } }
 .btn-add { width:26px; height:26px; padding:0; border-radius:50%; font-size:16px; line-height:1; }
 .btn-add-more { height:26px; padding:0 7px; font-size:11px; }
+/* Sharing */
+details.menu { position:relative; }
+details.menu > summary { list-style:none; padding:7px 14px; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:13px; font-weight:550; background:var(--surface-2); user-select:none; }
+details.menu > summary::-webkit-details-marker { display:none; }
+details.menu > summary:hover { border-color:var(--accent); }
+details.menu.sm > summary { padding:4px 11px; font-size:12px; }
+.menu-items { position:absolute; right:0; top:calc(100% + 4px); z-index:10; min-width:220px; display:flex; flex-direction:column; padding:4px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); }
+.menu.up .menu-items { top:auto; bottom:calc(100% + 4px); }
+.menu-items button { background:none; border:none; text-align:left; font-weight:450; }
+.menu-items button:hover { background:var(--surface-2); }
+.import-row { display:grid; grid-template-columns:22px 22px 1fr auto; gap:2px 8px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--border); }
+.import-row:last-child { border-bottom:none; }
+.import-row input { width:auto; }
+.import-row.same { opacity:.55; }
+.import-row .changes { grid-column:3 / -1; font-size:12px; color:var(--muted); }
+.import-row .name { font-weight:600; }
+.status-badge { font-size:11px; padding:1px 8px; border-radius:9px; white-space:nowrap; background:var(--surface-2); color:var(--muted); }
+.status-badge.new { background:var(--accent-soft); color:var(--accent); }
+.status-badge.update { border:1px solid var(--warn); color:var(--warn); }
+.check-row { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; }
+.check-row label { display:flex; align-items:center; gap:5px; font-size:12.5px; }
+.check-row input { width:auto; }
 
 /* API */
 .token-row, .link-row { display:flex; gap:6px; }
@@ -292,7 +314,17 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
   <div id="rules-list-view">
     <div class="page-head">
       <h1>Rules</h1>
-      <div class="btn-bar"><button class="btn-primary" onclick="openRule(null)">+ New rule</button></div>
+      <div class="btn-bar">
+        <button onclick="openImport()">Import…</button>
+        <details class="menu" id="export-menu">
+          <summary id="export-summary">Export ▾</summary>
+          <div class="menu-items">
+            <button onclick="exportShown('copy')">Copy to clipboard</button>
+            <button onclick="exportShown('file')">Save as file…</button>
+          </div>
+        </details>
+        <button class="btn-primary" onclick="openRule(null)">+ New rule</button>
+      </div>
     </div>
     <div class="toolbar">
       <input id="rule-filter" placeholder="🔍 Filter by name, sender, subject…" oninput="renderRuleList()">
@@ -306,6 +338,19 @@ pre.example { font-family:ui-monospace,"JetBrains Mono",monospace; font-size:11.
     <button class="back" onclick="closeRule()">← Rules</button>
     <div class="page-head"><h1 id="rule-title">New rule</h1></div>
     <div id="rule-editor"></div>
+  </div>
+
+  <div id="rules-import-view" style="display:none">
+    <button class="back" onclick="closeImport()">← Rules</button>
+    <div class="page-head"><h1>Import rules</h1></div>
+    <div class="card">
+      <div class="form-group">
+        <label>Rules as JSON <small>(from an OTP-Scout export)</small></label>
+        <textarea id="import-json" class="mono" rows="6" placeholder='Paste here, e.g. { "type": "otp-scout-rules", "version": 1, "rules": [ … ] }' oninput="previewImport()"></textarea>
+        <div class="hint">Or <button class="link" onclick="importFromFile()">choose a file…</button> Rules with the same name are updated; their accounts, active state and position stay as they are.</div>
+      </div>
+      <div id="import-preview"></div>
+    </div>
   </div>
 </section>
 
@@ -671,6 +716,9 @@ function renderRuleList() {
   const shown = rules.map((r, i) => [r, i]).filter(([r]) =>
     (!tag || appliesTo(r, tag)) &&
     (!q || [r.label, r.sender, r.subject, r.body, r.link_prefix].some(v => (v || '').toLowerCase().includes(q))))
+  shownRules = shown.map(([r]) => r)
+  document.getElementById('export-menu').style.display = shown.length ? '' : 'none'
+  document.getElementById('export-summary').textContent = shown.length === rules.length ? 'Export all ▾' : `Export ${shown.length} ▾`
   const el = document.getElementById('rule-list')
   if (!rules.length) {
     el.innerHTML = '<div class="empty-state">No rules yet.<br>Add one with “+ New rule” or take rules from the Catalog.</div>'
@@ -703,9 +751,10 @@ async function moveRule(id, delta) {
   catch(e) { showToast('Error: ' + e, 'error') }
 }
 
-function showRuleView(detail) {
-  document.getElementById('rules-list-view').style.display = detail ? 'none' : ''
-  document.getElementById('rules-detail-view').style.display = detail ? '' : 'none'
+// view: 'list', 'detail' (rule editor) or 'import'
+function showRuleView(view) {
+  for (const v of ['list', 'detail', 'import'])
+    document.getElementById(`rules-${v}-view`).style.display = v === view ? '' : 'none'
   document.querySelector('.content').scrollTop = 0
 }
 
@@ -716,15 +765,16 @@ async function openRule(id, prefill = {}) {
   const r = id ? rules.find(x => x.id === id) : null
   if (id && !r) return showToast('Rule no longer exists.', 'error')
   editRule = JSON.parse(JSON.stringify(r || prefill.rule || newRule()))
+  suggest = null
   testSample = prefill.sample || { from: '', subject: '', body: '' }
   document.getElementById('rule-title').textContent = id ? (r.label || 'Edit rule') : 'New rule'
-  showRuleView(true)
+  showRuleView('detail')
   renderRuleEditor()
 }
 
 function closeRule() {
   editRule = null
-  showRuleView(false)
+  showRuleView('list')
   loadRules()
 }
 
@@ -737,6 +787,7 @@ function setKind(kind) {
 function setField(key, value) {
   editRule[key] = value
   runTest()
+  updateSnippet()
 }
 
 function setFormat(id) {
@@ -850,9 +901,18 @@ function renderRuleEditor() {
 
     <div class="form-actions">
       ${r.id ? '<button class="btn-danger btn-sm left" onclick="deleteRule()">Delete</button>' : ''}
+      <details class="menu sm up ${r.id ? '' : 'left'}">
+        <summary>Share ▾</summary>
+        <div class="menu-items">
+          <button onclick="exportRule('copy')">Copy as JSON</button>
+          <button onclick="exportRule('file')">Save as file…</button>
+          <button onclick="toggleSuggest()">Suggest for the catalog…</button>
+        </div>
+      </details>
       <button onclick="closeRule()">Cancel</button>
       <button class="btn-primary" onclick="saveRule()">Save</button>
     </div>
+    ${suggest ? suggestPanel() : ''}
   </div>`
   runTest()
 }
@@ -895,6 +955,186 @@ async function deleteRule() {
     rules = await invoke('delete_rule', { id: editRule.id })
     showToast('Rule deleted.', 'success')
     closeRule()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+// ================= Sharing =================
+let shownRules = [], suggest = null
+let importItems = [], importError = '', importTags = [ALL], importSeq = 0
+const CATALOG_ISSUE = 'https://github.com/Skrrytch/otp-scout/issues/new'
+const IMPORT_STATUS = { new:'New', update:'Update', unchanged:'Unchanged' }
+const FIELD_LABEL = { kind:'type', sender:'sender', subject:'subject', body:'body', code_pattern:'code format', link_prefix:'link' }
+const slug = s => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+function closeMenus(except) {
+  document.querySelectorAll('details.menu[open]').forEach(d => { if (d !== except) d.open = false })
+}
+document.addEventListener('click', ev => closeMenus(ev.target.closest('details.menu')))
+
+async function shareRules(list, how, fileBase) {
+  closeMenus()
+  const what = list.length === 1 ? `“${list[0].label}”` : `${list.length} rules`
+  try {
+    const json = await invoke('export_rules', { rules: list.map(cleanRule) })
+    if (how === 'copy') {
+      await invoke('copy_code', { code: json })
+      showToast(`${what} copied as JSON.`, 'success')
+    } else {
+      const path = await invoke('save_json_file', { fileName: `${fileBase}.json`, content: json })
+      if (path) showToast(`${what} saved to ${path}.`, 'success')
+    }
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+const exportShown = how => shareRules(shownRules, how, 'otp-scout-rules')
+const exportRule = how => shareRules([editRule], how, `otp-scout-rule-${slug(editRule.label) || 'rule'}`)
+
+// ---- Catalog suggestion: an app entry for catalog/catalog.json ----
+function toggleSuggest() {
+  closeMenus()
+  suggest = suggest ? null : {
+    name: (editRule.label || '').replace(/\s*\([^)]*\)\s*$/, ''),
+    lang: editRule.catalog?.lang || (navigator.language || 'en').slice(0, 2),
+  }
+  renderRuleEditor()
+}
+
+// Same fields as the backend export: only those of the rule's kind.
+function catalogRule(r) {
+  const f = { kind: r.kind, sender: r.sender || '', subject: r.subject || '' }
+  if (r.kind === 'link') f.link_prefix = r.link_prefix || ''
+  else Object.assign(f, { body: r.body || '', code_pattern: r.code_pattern || '' })
+  return f
+}
+
+function catalogSnippet() {
+  const { name, lang } = suggest
+  return JSON.stringify({ id: slug(name), name, variants: { [lang]: [catalogRule(editRule)] } }, null, 2)
+}
+
+function suggestPanel() {
+  return `
+    <div class="tester" style="margin-top:14px">
+      <h4>Suggest for the catalog</h4>
+      <div class="grid-2">
+        <div class="form-group"><label>Service</label><input value="${esc(suggest.name)}" placeholder="e.g. Spotify" oninput="suggest.name=this.value;updateSnippet()"></div>
+        <div class="form-group"><label>Language <small>(ISO code)</small></label><input value="${esc(suggest.lang)}" placeholder="de" oninput="suggest.lang=this.value.trim().toLowerCase();updateSnippet()"></div>
+      </div>
+      <pre class="example" id="suggest-snippet">${esc(catalogSnippet())}</pre>
+      <div class="hint">An app entry for <code>catalog/catalog.json</code>. Only suggest rules you checked against a real mail. If the service is already in the catalog, add the rule to its <code>variants</code> instead.</div>
+      <div class="form-actions">
+        <button class="btn-sm" onclick="copySnippet()">Copy entry</button>
+        <button class="btn-sm btn-primary" onclick="openCatalogIssue()">Open GitHub issue…</button>
+      </div>
+    </div>`
+}
+
+function updateSnippet() {
+  const el = document.getElementById('suggest-snippet')
+  if (el && suggest) el.textContent = catalogSnippet()
+}
+
+async function copySnippet() {
+  try { await invoke('copy_code', { code: catalogSnippet() }); showToast('Catalog entry copied.', 'success') }
+  catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+function openCatalogIssue() {
+  if (!suggest.name.trim() || !suggest.lang) return showToast('Enter service and language.', 'error')
+  const body = `**Service:** ${suggest.name}\n**Language:** ${suggest.lang}\n\nTested with a real mail in OTP-Scout.\n\n\`\`\`json\n${catalogSnippet()}\n\`\`\`\n`
+  const url = `${CATALOG_ISSUE}?title=${encodeURIComponent(`Catalog: ${suggest.name}`)}&body=${encodeURIComponent(body)}`
+  invoke('open_link', { url }).catch(e => showToast('Error: ' + e, 'error'))
+}
+
+// ---- Import ----
+function openImport() {
+  document.getElementById('import-json').value = ''
+  importItems = []
+  importError = ''
+  importTags = [ALL]
+  renderImportPreview()
+  showRuleView('import')
+}
+
+function closeImport() {
+  showRuleView('list')
+  loadRules()
+}
+
+async function importFromFile() {
+  try {
+    const json = await invoke('open_json_file')
+    if (json == null) return
+    document.getElementById('import-json').value = json
+    previewImport()
+  } catch(e) { showToast('Error: ' + e, 'error') }
+}
+
+async function previewImport() {
+  const json = document.getElementById('import-json').value.trim()
+  const seq = ++importSeq
+  let items = [], error = ''
+  if (json) {
+    try { items = await invoke('preview_import', { json }) }
+    catch(e) { error = String(e) }
+  }
+  if (seq !== importSeq) return  // a newer input is already being checked
+  importItems = items.map(it => ({ ...it, picked: it.status !== 'unchanged' }))
+  importError = error
+  renderImportPreview()
+}
+
+function pickImport(i, on) {
+  importItems[i].picked = on
+  renderImportPreview()
+}
+
+function setImportTag(tag, on) {
+  importTags = tag === ALL ? (on ? [ALL] : []) : on ? [...importTags, tag] : importTags.filter(t => t !== tag)
+  renderImportPreview()
+}
+
+function renderImportPreview() {
+  const el = document.getElementById('import-preview')
+  if (importError) { el.innerHTML = `<div class="test-result err">⚠ ${esc(importError)}</div>`; return }
+  if (!importItems.length) { el.innerHTML = ''; return }
+  const picked = importItems.filter(i => i.picked)
+  const all = importTags.includes(ALL)
+  const rows = importItems.map((it, i) => `
+    <div class="import-row ${it.status === 'unchanged' ? 'same' : ''}">
+      <input type="checkbox" ${it.picked ? 'checked' : ''} ${it.status === 'unchanged' ? 'disabled' : ''} onchange="pickImport(${i}, this.checked)">
+      <span>${it.rule.kind === 'link' ? '🔗' : '🔢'}</span>
+      <span class="name">${esc(it.rule.label)}</span>
+      <span class="status-badge ${it.status}">${IMPORT_STATUS[it.status]}</span>
+      ${it.changes.length ? `<span class="changes">Changes ${it.changes.map(c => FIELD_LABEL[c] || c).join(', ')}</span>` : ''}
+    </div>`).join('')
+  const accountPick = picked.some(i => i.status === 'new') ? `
+    <div class="form-group">
+      <label>Check new rules with</label>
+      <div class="check-row">
+        <label><input type="checkbox" ${all ? 'checked' : ''} onchange="setImportTag('${ALL}', this.checked)"> All accounts</label>
+        ${accounts.map(a => `<label><input type="checkbox" ${importTags.includes(a.tag) ? 'checked' : ''} ${all ? 'disabled' : ''} onchange="setImportTag('${esc(a.tag)}', this.checked)"> ${esc(a.label)}</label>`).join('')}
+      </div>
+    </div>` : ''
+  el.innerHTML = `
+    <div class="rule-list" style="margin-bottom:12px">${rows}</div>
+    ${picked.length ? '' : '<div class="hint" style="margin-bottom:12px">Nothing to import – all selected rules are already up to date.</div>'}
+    ${accountPick}
+    <div class="form-actions">
+      <button onclick="closeImport()">Cancel</button>
+      <button class="btn-primary" ${picked.length ? '' : 'disabled'} onclick="applyImport()">Import ${picked.length} rule${picked.length === 1 ? '' : 's'}</button>
+    </div>`
+}
+
+async function applyImport() {
+  const picked = importItems.filter(i => i.picked)
+  if (picked.some(i => i.status === 'new') && !importTags.length) return showToast('Choose at least one account for the new rules.', 'error')
+  const count = status => picked.filter(i => i.status === status).length
+  try {
+    rules = await invoke('apply_import', { json: document.getElementById('import-json').value, labels: picked.map(i => i.rule.label), tags: importTags })
+    showToast(`Rules imported: ${count('new')} new, ${count('update')} updated.`, 'success')
+    closeImport()
   } catch(e) { showToast('Error: ' + e, 'error') }
 }
 
@@ -958,6 +1198,14 @@ function toggleCatalogPick(key) {
   renderCatalog()
 }
 
+// Rule names identify rules on import, so they must be unique: `Name`, `Name 2`, …
+function uniqueLabel(base) {
+  const taken = label => rules.some(r => r.label.trim().toLowerCase() === label.toLowerCase())
+  let label = base
+  for (let n = 2; taken(label); n++) label = `${base} ${n}`
+  return label
+}
+
 async function addCatalogApp(catId, appId, tags) {
   if (!tags.length) return showToast('Choose at least one account.', 'error')
   const lang = document.getElementById('cat-lang').value
@@ -966,7 +1214,7 @@ async function addCatalogApp(catId, appId, tags) {
   try {
     for (const r of app.variants[lang]) {
       if (rules.some(e => sameRule(e, r))) continue
-      rules = await invoke('save_rule', { rule: cleanRule({ ...r, id: '', tags, label: `${app.name} (${langName})`, enabled: true, catalog: { app: app.id, lang } }) })
+      rules = await invoke('save_rule', { rule: cleanRule({ ...r, id: '', tags, label: uniqueLabel(`${app.name} (${langName})`), enabled: true, catalog: { app: app.id, lang } }) })
     }
     catalogPick = null
     renderBadges()
@@ -1243,7 +1491,7 @@ async function setupListeners() {
 // keyup: after the window is re-shown, WebKitGTK drops the first keydown.
 document.addEventListener('keyup', ev => {
   if (ev.key !== 'Escape') return
-  const editing = ['accounts-detail-view', 'rules-detail-view'].some(id => document.getElementById(id).style.display !== 'none')
+  const editing = ['accounts-detail-view', 'rules-detail-view', 'rules-import-view'].some(id => document.getElementById(id).style.display !== 'none')
   if (!editing) invoke('hide_window').catch(() => {})
 })
 

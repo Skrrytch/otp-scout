@@ -13,7 +13,7 @@ Rules that were not yet checked against a real mail are marked as `unverified` f
 This catalog only stays useful if people who actually receive these mails keep it up to date. Contributions are very welcome:
 
 - **Verify a rule:** You received a login mail from a service in the catalog? Compare sender and subject with the rule. If it matches, remove the language from `unverified`. If it doesn't, fix the rule.
-- **Add a service:** Add rules for services that log you in with a one-time code or magic link sent by mail.
+- **Add a service:** Add rules for services that log you in with a one-time code or magic link sent by mail. In OTP-Scout, open a tested rule and choose *Share ▾ → Suggest for the catalog…*: it builds the app entry for `catalog.json` and can open a prefilled GitHub issue.
 - **Add a language:** Add a variant for a language you receive mails in.
 - **Report broken rules:** Open an issue with the service name, the language and the (anonymized) sender and subject.
 
