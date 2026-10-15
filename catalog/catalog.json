@@ -494,6 +494,21 @@
           }
         },
         {
+          "id": "check24",
+          "name": "Check24",
+          "variants": {
+            "de": [
+              {
+                "kind": "code",
+                "sender": "*@check24.com",
+                "subject": "{code} ist Ihr Sicherheitscode",
+                "body": "",
+                "code_pattern": "[0-9]{4,8}"
+              }
+            ]
+          }
+        },
+        {
           "id": "silentwood",
           "name": "Silentwood",
           "variants": {
