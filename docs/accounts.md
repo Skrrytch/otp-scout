@@ -45,7 +45,7 @@ Many providers don't allow IMAP with your normal password. They require an **app
 | Posteo | `posteo.de` | 993 SSL/TLS | Normal password |
 | mailbox.org | `imap.mailbox.org` | 993 SSL/TLS | Normal password |
 | Proton Mail | `127.0.0.1` | 1143 STARTTLS | Bridge password, see [below](#proton-mail) |
-| Outlook.com, Microsoft 365 | – | – | Not supported, see [below](#microsoft-outlookcom-microsoft-365) |
+| Outlook.com, Microsoft 365 | – | – | Not via IMAP; see the [workarounds below](#microsoft-outlookcom-microsoft-365) |
 
 Providers change their settings now and then. If a connection fails, check your provider's help page for the current IMAP settings.
 
@@ -62,7 +62,10 @@ Proton Mail encrypts your mail end to end and has no direct IMAP access. Install
 
 ### Microsoft (Outlook.com, Microsoft 365)
 
-Microsoft no longer accepts passwords or app passwords for IMAP. It requires an OAuth sign-in, which OTP-Scout doesn't support yet. As a workaround, forward login mails to a mailbox at another provider and add that one.
+Microsoft no longer accepts passwords or app passwords for IMAP. It requires an OAuth sign-in, which OTP-Scout doesn't support yet. Two workarounds:
+
+- **Outlook on the web:** if you keep Outlook open in the browser anyway, a Tampermonkey script can pass codes from new mails to OTP-Scout. See [Example: Outlook on the web](api.md#example-outlook-on-the-web).
+- **Forwarding:** forward login mails to a mailbox at another provider and add that one.
 
 ### Company mail servers
 

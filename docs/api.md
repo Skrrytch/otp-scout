@@ -74,6 +74,105 @@ function otpScout(kind, value, ruleName) {
 // otpScout('link', 'https://example.com/login?token=…', 'My site')
 ```
 
+## Example: Outlook on the Web
+
+Microsoft accounts (Outlook.com, Microsoft 365) [can't be added over IMAP](accounts.md#microsoft-outlookcom-microsoft-365). If you read that mail in the browser anyway, a Tampermonkey script can watch the open Outlook tab instead. Outlook adds a new mail to the message list as soon as it arrives, with sender, subject and the start of the text. The script searches the visible text of the page for the mails described in its rules. When it finds one, it sends the code to OTP-Scout and marks the entry in Outlook.
+
+This script is in daily use with Atlassian verification mails in Microsoft 365.
+
+```js
+// ==UserScript==
+// @name         OTP-Scout for Outlook on the web
+// @description  Sends codes and links from new mails in Outlook on the web to OTP-Scout
+// @match        https://outlook.cloud.microsoft/mail/*
+// @match        https://outlook.office.com/mail/*
+// @match        https://outlook.office365.com/mail/*
+// @match        https://outlook.live.com/mail/*
+// @grant        GM_xmlhttpRequest
+// @connect      127.0.0.1
+// ==/UserScript==
+
+(function () {
+  'use strict'
+
+  const PORT = 6870
+  const TOKEN = 'YOUR_TOKEN' // from OTP-Scout: Settings → API
+
+  // One entry per service. `indicator` identifies the mail; `extract` takes
+  // the code or link from the text, its first group (…) is the value.
+  // `type` is 'code' or 'link'.
+  const RULES = [
+    {
+      ruleName: 'Atlassian',
+      type: 'code',
+      indicator: 'is your verification code',
+      extract: /\b(\d+)\s+is your verification code/i,
+    },
+  ]
+
+  // Codes already visible while Outlook loads are old and not reported.
+  const WARMUP_MS = 5000
+  const startedAt = Date.now()
+  const processed = new Set()
+
+  function checkMails() {
+    const reporting = Date.now() - startedAt > WARMUP_MS
+    // Innermost elements first, so the mark lands on the entry, not on a container.
+    const nodes = [...document.querySelectorAll('span, div')].reverse()
+    for (const node of nodes) {
+      const text = node.innerText || node.textContent || ''
+      for (const rule of RULES) {
+        if (!text.includes(rule.indicator)) continue
+        const value = text.match(rule.extract)?.[1]
+        if (!value || processed.has(value)) continue
+        processed.add(value)
+        if (!reporting) continue
+        console.log(`[OTP-Scout] ${rule.ruleName}: ${rule.type} found`)
+        send(rule, value)
+        // Mark it in Outlook: codes green, links blue.
+        node.style.backgroundColor = rule.type === 'code' ? 'lightgreen' : 'lightblue'
+        node.style.color = 'black'
+      }
+    }
+  }
+
+  function send(rule, value) {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: `http://127.0.0.1:${PORT}/api/otp/${rule.type}`,
+      headers: { 'Content-Type': 'application/json', 'X-OTP-Scout-Token': TOKEN },
+      // { ruleName, code } or { ruleName, link }
+      data: JSON.stringify({ ruleName: rule.ruleName, [rule.type]: value }),
+      onload: r => console.log(`[OTP-Scout] Sent, answer ${r.status}: ${r.responseText}`),
+      onerror: e => console.error(`[OTP-Scout] Not sent – is OTP-Scout running with the API on port ${PORT}?`, e),
+    })
+  }
+
+  // Check whenever Outlook changes the page. Unlike a timer, this isn't
+  // slowed down in a background tab.
+  let pending = null
+  new MutationObserver(() => {
+    clearTimeout(pending)
+    pending = setTimeout(checkMails, 500)
+  }).observe(document.body, { childList: true, subtree: true, characterData: true })
+  console.log('[OTP-Scout] Watching Outlook for configured mails…')
+})()
+```
+
+**Setup:**
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/) and add the script.
+2. Replace `YOUR_TOKEN` with the token from **Settings → API**, and adjust `PORT` if you changed it.
+3. Adjust `RULES` to your mails. `indicator` should be specific enough to hit only login mails. `extract` is a regular expression whose first group is the code.
+4. Keep Outlook open in a tab, e.g. pinned. Request a code and watch for the popup. The browser console (F12) shows `[OTP-Scout]` messages.
+
+**Limits:**
+
+- **Mainly for codes.** The script sees the text of the page: the message list with subject and start of the text, and the opened mail. A link is only found if its address appears as text. Mails with a *Log in* button hide it.
+- **The tab must stay alive.** Chrome and Edge may put background tabs to sleep to save memory. Then Outlook stops updating, and the script sees nothing until you switch back. Add Outlook to the exceptions: in Chrome under *Settings → Performance → Always keep these sites active*, in Edge under *Settings → System and performance → Never put these sites to sleep*.
+- **Each value is reported once** per page load. Codes visible in the first five seconds after loading are treated as old and ignored.
+- **Outlook's page structure isn't an interface.** Microsoft can change it at any time. Since the script only searches text, it doesn't depend on particular elements, but it does depend on the text the mail shows.
+
 ## Security
 
 - The server binds to `127.0.0.1` only.
